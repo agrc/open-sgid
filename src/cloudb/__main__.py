@@ -7,7 +7,7 @@ Usage:
   cloudb create db [--name=<name>]
   cloudb create schema [--schemas=<name>]
   cloudb create admin-user
-  cloudb import
+  cloudb import [--skip-schema=<names>...]
 
 Arguments:
   name - all or any of the other iso categories
@@ -16,6 +16,7 @@ Arguments:
 from textwrap import dedent
 
 import psycopg2
+from colorama import Back, Fore, init
 from docopt import docopt
 from osgeo import gdal, ogr
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -99,29 +100,25 @@ def create_schemas(schemas):
 
         conn.commit()
 
-
-def import_data():
-    gdal.UseExceptions()
-    gdal.SetConfigOption('PG_USE_COPY', 'YES')
-
-    cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
-    internal_sgid = config.get_source_connection()
-
-    connection = ogr.Open(internal_sgid)
-
+def _get_tables(connection_string, skip_schemas):
     layer_schema_map = []
     exclude_schemas = ['sde', 'meta']
     exclude_fields = ['objectid', 'fid', 'globalid', 'gdb_geomattr_data']
+
+    if skip_schemas and len(skip_schemas) > 0:
+        exclude_schemas.extend(skip_schemas)
+
+    connection = ogr.Open(connection_string)
 
     for qualified_layer in connection:
         schema, layer = qualified_layer.GetName().split('.')
         schema = schema.lower()
         layer = layer.lower()
 
-        print(f'checking {schema}.{layer}...')
+        print(f'checking {Fore.BLUE}{schema}.{layer}{Fore.RESET}...')
 
         if schema in exclude_schemas:
-            print('-skipping')
+            print(f'{Fore.RED}- skipping:{Fore.RESET} {schema}')
 
             continue
 
@@ -134,13 +131,12 @@ def import_data():
             field_name = field.GetName().lower()
 
             if field_name in exclude_fields:
-                print(f'    {field_name}')
+                print(f'  {Fore.YELLOW}- skipping:{Fore.RESET} {field_name}')
 
                 field.Destroy()
 
                 continue
 
-            # print(f'  adding {field_name}')
             fields.append(field_name)
 
             field.Destroy()
@@ -150,14 +146,28 @@ def import_data():
         del definition
         del qualified_layer
 
-
-    print(f'sorting map. found {len(layer_schema_map)} layers')
+    print(f'sorting map. found {Fore.GREEN}{len(layer_schema_map)}{Fore.RESET} layers')
     layer_schema_map.sort(key=lambda items: items[0])
 
-    print('inserting layers')
+    print([item[0] for item in layer_schema_map])
+
+    return layer_schema_map
+
+
+def import_data(skip_schemas):
+    gdal.UseExceptions()
+    gdal.SetConfigOption('PG_USE_COPY', 'YES')
+
+    cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
+    internal_sgid = config.get_source_connection()
+
+    layer_schema_map = _get_tables(internal_sgid, skip_schemas)
+
+    print(f'{Fore.BLUE}inserting layers...{Fore.RESET}')
+    return
     for schema, layer, fields in layer_schema_map:
 
-        sql = f'SELECT shape FROM "{schema}.{layer}"'
+        sql = f'SELECT objectid FROM "{schema}.{layer}"'
 
         if len(fields) > 0:
             sql = f"SELECT {','.join(fields)} FROM \"{schema}.{layer}\""
@@ -193,7 +203,7 @@ def import_data():
             ],
         )
 
-        print(f'  inserting {layer} into {schema} with {sql}...')
+        print(f'  inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.MAGENTA}{schema}{Fore.RESET} with {Fore.BLUE}{sql}{Fore.RESET}...')
 
         result = gdal.VectorTranslate(
             cloud_db,
@@ -201,7 +211,7 @@ def import_data():
             options=pg_options
         )
 
-        print(f'- done')
+        print(f'{Fore.GREEN}- done')
 
         del result
 
@@ -233,7 +243,9 @@ def create_public_user(props):
 def main():
     '''Main entry point for program. Parse arguments and pass to sweeper modules.
     '''
+    init()
     args = docopt(__doc__, version='1.0.0')
+    print(f'{Back.WHITE}{Fore.BLACK}{args}{Back.RESET}{Fore.RESET}')
 
     if args['create']:
         if args['schema']:
@@ -256,7 +268,7 @@ def main():
             return create_db(name.lower(), config.DBO)
 
     if args['import']:
-        return import_data()
+        return import_data(args['--skip-schema'])
 
     return 1
 
