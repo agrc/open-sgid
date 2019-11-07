@@ -201,7 +201,7 @@ def import_data(skip_schemas):
             ],
         )
 
-        print(f'  inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.MAGENTA}{schema}{Fore.RESET} with {Fore.BLUE}{sql}{Fore.RESET}...')
+        print(f'  inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema}{Fore.RESET} with {Fore.CYAN}{sql}{Fore.RESET}...')
 
         result = gdal.VectorTranslate(
             cloud_db,
@@ -209,7 +209,7 @@ def import_data(skip_schemas):
             options=pg_options
         )
 
-        print(f'{Fore.GREEN}- done')
+        print(f'{Fore.GREEN}- done{Fore.RESET}')
 
         del result
 
