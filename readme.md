@@ -9,7 +9,7 @@ A cli tool for taking data from MSSQL and pushing it to PostGIS.
 1. activate the environment
    - `activate cloudb`
 1. install requirements
-   - `conda install psycopg2 docopt gdal && pip install python-dotenv`
+   - `conda install psycopg2 docopt gdal colorama && pip install python-dotenv`
 1. fill out the `config.py` variables
 1. fill out the `.env` variables
 1. navigate to the `src` directory of this project
