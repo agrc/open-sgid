@@ -113,7 +113,7 @@ def _get_tables(connection, skip_schemas):
         schema = schema.lower()
         layer = layer.lower()
 
-        print(f'checking {Fore.BLUE}{schema}.{layer}{Fore.RESET}...')
+        print(f'checking {Fore.CYAN}{schema}.{layer}{Fore.RESET}...')
 
         if schema in exclude_schemas:
             print(f'{Fore.RED}- skipping:{Fore.RESET} {schema}')
@@ -203,7 +203,7 @@ def import_data(skip_schemas):
             ],
         )
 
-        print(f'  inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema}{Fore.RESET} with {Fore.CYAN}{sql}{Fore.RESET}...')
+        print(f'inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema}{Fore.RESET} with {Fore.CYAN}{sql}{Fore.RESET}')
 
         result = gdal.VectorTranslate(
             cloud_db,
