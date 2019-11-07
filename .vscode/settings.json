@@ -1,0 +1,27 @@
+{
+  "python.pythonPath": "C:\\Users\\agrc-arcgis\\AppData\\Local\\ESRI\\conda\\envs\\pgsql\\python.exe",
+  "python.linting.pylintEnabled": true,
+  "python.linting.pycodestyleEnabled": false,
+  "python.linting.enabled": true,
+  "python.formatting.provider": "yapf",
+  "python.formatting.yapfPath": "yapf",
+  "python.formatting.yapfArgs": [
+    "--style",
+    "${workspaceRoot}/setup.cfg"
+  ],
+  "cSpell.words": [
+    "cloudb",
+    "conda",
+    "defn",
+    "dotenv",
+    "getenv",
+    "globalid",
+    "mssql",
+    "noinherit",
+    "objectid",
+    "odbc",
+    "osgeo",
+    "psycopg",
+    "stas"
+  ]
+}
