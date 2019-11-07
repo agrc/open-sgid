@@ -147,9 +147,7 @@ def _get_tables(connection_string, skip_schemas):
         del qualified_layer
 
     print(f'sorting map. found {Fore.GREEN}{len(layer_schema_map)}{Fore.RESET} layers')
-    layer_schema_map.sort(key=lambda items: items[0])
-
-    print([item[0] for item in layer_schema_map])
+    layer_schema_map.sort(key=lambda items: items[0]))
 
     return layer_schema_map
 
@@ -164,7 +162,7 @@ def import_data(skip_schemas):
     layer_schema_map = _get_tables(internal_sgid, skip_schemas)
 
     print(f'{Fore.BLUE}inserting layers...{Fore.RESET}')
-    return
+
     for schema, layer, fields in layer_schema_map:
 
         sql = f'SELECT objectid FROM "{schema}.{layer}"'
