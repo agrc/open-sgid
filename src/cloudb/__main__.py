@@ -171,7 +171,7 @@ def import_data():
                 '-sql',
                 sql,
                 '-lco',
-                'FID=id',
+                'FID=xid',
                 '-lco',
                 f'SCHEMA={schema}',
                 '-lco',
@@ -201,7 +201,7 @@ def import_data():
             options=pg_options
         )
 
-        print(f'  - done')
+        print(f'- done')
 
         del result
 
