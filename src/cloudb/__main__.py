@@ -146,7 +146,7 @@ def import_data():
             field.Destroy()
 
         layer_schema_map.append((schema, layer, fields))
-        print('cleaning up')
+
         del definition
         del qualified_layer
 
