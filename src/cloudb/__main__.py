@@ -100,15 +100,13 @@ def create_schemas(schemas):
 
         conn.commit()
 
-def _get_tables(connection_string, skip_schemas):
+def _get_tables(connection, skip_schemas):
     layer_schema_map = []
     exclude_schemas = ['sde', 'meta']
     exclude_fields = ['objectid', 'fid', 'globalid', 'gdb_geomattr_data']
 
     if skip_schemas and len(skip_schemas) > 0:
         exclude_schemas.extend(skip_schemas)
-
-    connection = ogr.Open(connection_string)
 
     for qualified_layer in connection:
         schema, layer = qualified_layer.GetName().split('.')
@@ -159,7 +157,9 @@ def import_data(skip_schemas):
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
-    layer_schema_map = _get_tables(internal_sgid, skip_schemas)
+    connection = ogr.Open(internal_sgid)
+
+    layer_schema_map = _get_tables(connection, skip_schemas)
 
     print(f'{Fore.BLUE}inserting layers...{Fore.RESET}')
 
