@@ -168,6 +168,8 @@ def import_data(skip_schemas):
         sql = f'SELECT objectid FROM "{schema}.{layer}"'
 
         if len(fields) > 0:
+            #: escape reserved words?
+            fields = [f'"{field}"' for field in fields]
             sql = f"SELECT {','.join(fields)} FROM \"{schema}.{layer}\""
 
         pg_options = gdal.VectorTranslateOptions(
