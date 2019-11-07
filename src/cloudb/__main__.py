@@ -147,7 +147,7 @@ def _get_tables(connection_string, skip_schemas):
         del qualified_layer
 
     print(f'sorting map. found {Fore.GREEN}{len(layer_schema_map)}{Fore.RESET} layers')
-    layer_schema_map.sort(key=lambda items: items[0]))
+    layer_schema_map.sort(key=lambda items: items[0])
 
     return layer_schema_map
 
