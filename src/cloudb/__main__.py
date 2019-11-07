@@ -150,10 +150,6 @@ def import_data():
         del definition
         del qualified_layer
 
-        break
-
-    print('closing connection')
-    # connection = None
 
     print(f'sorting map. found {len(layer_schema_map)} layers')
     layer_schema_map.sort(key=lambda items: items[0])
