@@ -42,8 +42,9 @@ cloudb import
 
 ## links
 
-- [arcgis postgis requirements](https://pro.arcgis.com/en/pro-app/help/data/geodatabases/manage-postgresql/database-requirements-postgresql.htm)
+- [gdal python docs](https://gdal.org/python/)
 - [ogr2ogr docs](https://gdal.org/programs/ogr2ogr.html)
+- [arcgis postgis requirements](https://pro.arcgis.com/en/pro-app/help/data/geodatabases/manage-postgresql/database-requirements-postgresql.htm)
 - [postgresql tuning site](https://pgtune.leopard.in.ua/#/)
 - [docker information](https://www.pgadmin.org/docs/pgadmin4/latest/container_deployment.html)
 - [saving servers in pgadmin](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#exporting-server)
