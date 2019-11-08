@@ -264,8 +264,6 @@ def import_data(skip_schemas, if_not_exists, dry_run):
                 options=pg_options
             )
 
-            import pdb; pdb.set_trace()
-
             del result
 
         LOG.info(f'{Fore.GREEN}- done{Fore.RESET}')
