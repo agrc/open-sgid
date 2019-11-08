@@ -213,7 +213,8 @@ def import_data(skip_schemas, if_not_exists, dry_run):
 
     for schema, layer, fields in layer_schema_map:
         if if_not_exists and _check_if_exists(cloud_db, schema, layer):
-            LOG.info(f' -skipping {Fore.RED}{schema}.{layer}{Fore.RESET}: already exists')
+            LOG.debug(f' -skipping {Fore.RED}{schema}.{layer}{Fore.RESET}: already exists')
+
             continue
 
         sql = f'SELECT objectid FROM "{schema}.{layer}"'
