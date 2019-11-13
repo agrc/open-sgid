@@ -4,12 +4,26 @@ A cli tool for taking data from MSSQL and pushing it to PostGIS.
 
 ## installation
 
+### python
+
 1. create a python conda environment
    - `conda create --name cloudb python=3.7`
 1. activate the environment
    - `activate cloudb`
 1. install requirements
    - `conda install psycopg2 docopt gdal colorama && pip install python-dotenv`
+
+### terraform
+
+1. install terraform cli
+1. create a service account with `project > editor` privileges
+1. place the service worker file in the `terraform` folder named as `terraform-sa.json`
+1. create the database
+   - `terraform apply`
+   - terraform will output the `postgres` user password, the cloud db host ip, and the default database name. Use those values to fill out the `src/cloudb/.env` file
+
+### python again
+
 1. fill out the `config.py` variables
 1. fill out the `.env` variables
 1. navigate to the `src` directory of this project
@@ -19,9 +33,9 @@ A cli tool for taking data from MSSQL and pushing it to PostGIS.
 ## usage
 
 ```sh
-cloudb create schema [--schemas=<name>]
 cloudb create admin-user
-cloudb create db [--name=<name>]
+cloudb create schema [--schemas=<name>]
+cloudb create read-only-user
 cloudb import
 ```
 
