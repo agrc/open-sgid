@@ -376,9 +376,9 @@ def create_read_only_user(schemas):
     with psycopg2.connect(**config.DBO_CONNECTION) as conn:
         with conn.cursor() as cursor:
             cursor.execute("SELECT 1 FROM pg_roles WHERE rolname='read_only'")
-            role, = cursor.fetchone()
+            role = cursor.fetchone()
 
-            if role != 1:
+            if role is None or role[0] != 1:
                 sql = dedent(
                     f'''
                         CREATE ROLE read_only WITH
