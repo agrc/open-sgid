@@ -18,6 +18,9 @@ A cli tool for taking data from MSSQL and pushing it to PostGIS.
 1. install terraform cli
 1. create a service account with `project > editor` privileges
 1. place the service worker file in the `terraform` folder named as `terraform-sa.json`
+1. initialize terraform
+   - `cd `src/terraform`
+   - `terraform init`
 1. create the database
    - `terraform apply`
    - terraform will output the `postgres` user password, the cloud db host ip, and the default database name. Use those values to fill out the `src/cloudb/.env` file
