@@ -121,5 +121,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# terraform
 src/terraform/terraform-sa.json
 src/terraform/.terraform/
