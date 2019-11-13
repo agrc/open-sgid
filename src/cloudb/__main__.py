@@ -7,12 +7,15 @@ Usage:
   cloudb create db [--name=<name> --verbosity=<level>]
   cloudb create schema [--schemas=<name> --verbosity=<level>]
   cloudb create admin-user [--verbosity=<level>]
+  cloudb create read-only-user [--verbosity=<level>]
   cloudb import [--skip-schema=<names>... --dry-run --verbosity=<level> --skip-if-exists]
+  cloudb fix-geometries [--verbosity=<level>]
 
 Arguments:
   name - all or any of the other iso categories
 '''
 
+import sys
 from textwrap import dedent
 
 import psycopg2
@@ -27,8 +30,17 @@ from .logger import Logger
 LOG = Logger()
 CONNECTION_TABLE_CACHE = {}
 
+gdal.SetConfigOption('MSSQLSPATIAL_LIST_ALL_TABLES', 'YES')
+gdal.SetConfigOption('PG_LIST_ALL_TABLES', 'YES')
+gdal.SetConfigOption('PG_USE_POSTGIS', 'YES')
+gdal.SetConfigOption('PG_USE_COPY', 'YES')
+
 
 def execute_sql(sql, connection):
+    '''executes sql on the information
+    sql: string T-SQL
+    connection: dict with connection information
+    '''
     LOG.info(f'  executing {sql}')
 
     with psycopg2.connect(**connection) as conn:
@@ -39,6 +51,10 @@ def execute_sql(sql, connection):
 
 
 def create_db(name, owner):
+    '''creates the database with the postgis extension
+    name: string db name
+    owner: string db owner
+    '''
     LOG.info(f'creating database {name}')
 
     sql = dedent(f'''
@@ -66,6 +82,9 @@ def create_db(name, owner):
 
 
 def create_admin_user(props):
+    '''creates the admin user that owns the schemas
+    props: dictionary with credentials for user
+    '''
     sql = dedent(
         f'''
         CREATE ROLE {props["name"]} WITH
@@ -90,6 +109,9 @@ def create_admin_user(props):
 
 
 def create_schemas(schemas):
+    '''creates the schemas to match our ISO categories
+    schemas: array of schemas to create
+    '''
     with psycopg2.connect(**config.DBO_CONNECTION) as conn:
         sql = []
 
@@ -106,12 +128,15 @@ def create_schemas(schemas):
 
 
 def _get_tables(connection_string, skip_schemas):
+    '''creates a list of tables with fields from the connection string
+    connection_string: string to connect to db
+    skip_schemas: array of schemas to ignore when building the list
+    returns: array of tuples with 0: schema, 1: table name: 2: array of field names
+    '''
     layer_schema_map = []
-    exclude_schemas = ['sde', 'meta']
-    exclude_fields = ['objectid', 'fid', 'globalid', 'gdb_geomattr_data']
 
     if skip_schemas and len(skip_schemas) > 0:
-        exclude_schemas.extend(skip_schemas)
+        config.EXCLUDE_SCHEMAS.extend(skip_schemas)
 
     LOG.verbose('connecting to database')
     connection = gdal.OpenEx(connection_string)
@@ -129,7 +154,7 @@ def _get_tables(connection_string, skip_schemas):
 
         LOG.debug(f'- {Fore.CYAN}{schema}.{layer}{Fore.RESET}')
 
-        if schema in exclude_schemas:
+        if schema in config.EXCLUDE_SCHEMAS:
             LOG.verbose(f' {Fore.RED}- skipping:{Fore.RESET} {schema}')
 
             continue
@@ -142,7 +167,7 @@ def _get_tables(connection_string, skip_schemas):
 
             field_name = field.GetName().lower()
 
-            if field_name in exclude_fields:
+            if field_name in config.EXCLUDE_FIELDS:
                 LOG.verbose(f'  {Fore.YELLOW}- skipping:{Fore.RESET} {field_name}')
 
                 continue
@@ -162,6 +187,12 @@ def _get_tables(connection_string, skip_schemas):
 
 
 def _check_if_exists(connection_string, schema, table):
+    '''returns true or false if a table exists in the connections_string db
+    connection_string: string of db to check
+    schema: string schema name
+    table: string table name
+    returns: bool
+    '''
     LOG.debug('checking cache')
 
     if connection_string in CONNECTION_TABLE_CACHE and len(CONNECTION_TABLE_CACHE[connection_string]) > 0:
@@ -199,11 +230,11 @@ def _check_if_exists(connection_string, schema, table):
 
 
 def import_data(skip_schemas, if_not_exists, dry_run):
-    gdal.SetConfigOption('MSSQLSPATIAL_LIST_ALL_TABLES', 'YES')
-    gdal.SetConfigOption('PG_USE_COPY', 'YES')
-    gdal.SetConfigOption('PG_USE_POSTGIS', 'YES')
-    gdal.SetConfigOption('PG_LIST_ALL_TABLES', 'YES')
-
+    '''imports data from sql to postgis
+    skip_schemas: array of schema strings to skip
+    if_not_exists: create new tables if the destination does not have it
+    dry_run: do not modify the destination
+    '''
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
@@ -244,8 +275,8 @@ def import_data(skip_schemas, if_not_exists, dry_run):
                 # 'GEOM_TYPE=geometry',
                 '-lco',
                 'PRECISION=YES',
-                # '-nlt',
-                # 'POLYGON',
+                '-nlt',
+                'PROMOTE_TO_MULTI',
                 '-nln',
                 f'{layer}',
                 '-s_srs',
@@ -259,11 +290,7 @@ def import_data(skip_schemas, if_not_exists, dry_run):
         LOG.debug(f'with {Fore.CYAN}{sql}{Fore.RESET}')
 
         if not dry_run:
-            result = gdal.VectorTranslate(
-                cloud_db,
-                internal_sgid,
-                options=pg_options
-            )
+            result = gdal.VectorTranslate(cloud_db, internal_sgid, options=pg_options)
 
             del result
 
@@ -272,7 +299,77 @@ def import_data(skip_schemas, if_not_exists, dry_run):
     LOG.info(f'{Fore.GREEN} Completed!')
 
 
+def update_geometry_type(connection):
+    '''checks for a shape field and alters the table to match the geometry type
+    connection: dict of connection properties
+    '''
+
+    with psycopg2.connect(**connection) as conn:
+        with conn.cursor() as cursor:
+            get_geometry_tables = (
+                'SELECT f_table_schema,f_table_name,f_geometry_column FROM public.geometry_columns '
+                'WHERE "type"=\'GEOMETRY\' ORDER BY f_table_schema,f_table_name;'
+            )
+
+            cursor.execute(get_geometry_tables)
+            tables_with_geometry_type = cursor.fetchall()
+
+            for schema, table_name, shape_field in tables_with_geometry_type:
+                LOG.debug(f'getting geometry types from {Fore.CYAN}{schema}.{table_name}{Fore.RESET}')
+
+                cursor.execute(f'SELECT DISTINCT geometrytype({shape_field}) FROM {schema}.{table_name}')
+
+                geometry_type = None
+                count = cursor.rowcount
+
+                LOG.debug(f'found {Fore.CYAN}{count}{Fore.RESET} geometry type')
+
+                if count == 1:
+                    geometry_type, = cursor.fetchone()
+                    LOG.verbose(f'found {Fore.MAGENTA}{geometry_type}{Fore.RESET}')
+
+                    if geometry_type is None:
+                        #: delete shape field; stand alone table
+                        LOG.info(f'no shape type found on {Fore.CYAN}{schema}.{table_name}{Fore.RESET}. {Fore.RED}dropping shape field{Fore.RESET}')
+
+                        cursor.execute(f'ALTER TABLE {schema}.{table_name} DROP COLUMN {shape_field} CASCADE')
+                        conn.commit()
+
+                        continue
+                else:
+                    geometry_types = [geom[0] for geom in cursor.fetchall()]
+
+                    LOG.verbose(f'found {Fore.MAGENTA}{", ".join(geometry_types)}{Fore.RESET}')
+
+                    geometry_type = max(geometry_types, key=len)
+
+                    LOG.verbose(f'chose {Fore.GREEN}{geometry_type}{Fore.RESET}')
+
+                set_geometry_type = (
+                    f'ALTER TABLE {schema}.{table_name} '
+                    f'ALTER COLUMN {shape_field} TYPE GEOMETRY({geometry_type}) '
+                    f'USING ST_SetSRID({shape_field},26912);'
+                )
+
+                if 'multi' in geometry_type.lower():
+                    LOG.verbose(f'{Fore.CYAN}upgrading to {geometry_type.lower()}{Fore.RESET}')
+
+                    upgrade_to_multi = (
+                        f'ALTER TABLE {schema}.{table_name} '
+                        f'ALTER COLUMN {shape_field} TYPE GEOMETRY({geometry_type}) '
+                        f'USING ST_Multi({shape_field});'
+                    )
+
+                    cursor.execute(upgrade_to_multi)
+                    conn.commit()
+
+                cursor.execute(set_geometry_type)
+                conn.commit()
+
+
 def create_public_user(props):
+    '''creates the db owner that will do table updates etc
+    '''
     sql = dedent(
         f'''
         CREATE ROLE {props["name"]} WITH
@@ -296,6 +393,66 @@ def create_public_user(props):
     execute_sql(sql, config.DBO_CONNECTION)
 
 
+def create_read_only_user(schemas):
+    '''create public user
+    '''
+
+    LOG.info(f'creating {Fore.CYAN}read only{Fore.RESET} role')
+
+    with psycopg2.connect(**config.DBO_CONNECTION) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname='read_only'")
+            role, = cursor.fetchone()
+
+            if role != 1:
+                sql = dedent(
+                    f'''
+                        CREATE ROLE read_only WITH
+                        NOSUPERUSER
+                        NOCREATEDB
+                        NOCREATEROLE
+                        NOINHERIT
+                        NOLOGIN
+                        NOREPLICATION
+                        VALID UNTIL 'infinity';
+
+                        -- grant privileges
+
+                        GRANT CONNECT ON DATABASE {config.DB} TO read_only;
+                        GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO read_only;
+                        GRANT USAGE ON SCHEMA public TO read_only;
+                        '''
+                )
+
+                execute_sql(sql, config.DBO_CONNECTION)
+
+            conn.commit()
+
+    sql = []
+
+    for name in schemas:
+        sql.append(f'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {name} TO read_only')
+        sql.append(f'GRANT SELECT ON ALL TABLES IN SCHEMA {name} TO read_only')
+        sql.append(f'GRANT USAGE ON SCHEMA {name} TO read_only')
+
+    execute_sql(';'.join(sql), config.DBO_CONNECTION)
+
+    LOG.info(f'adding {Fore.CYAN}agrc{Fore.RESET} user to {Fore.MAGENTA}read only{Fore.RESET} role')
+
+    sql = dedent(
+        f'''
+        DROP ROLE IF EXISTS agrc;
+        CREATE ROLE agrc WITH
+        LOGIN
+        PASSWORD 'agrc'
+        IN ROLE read_only
+        VALID UNTIL 'infinity';
+        '''
+    )
+
+    execute_sql(sql, config.DBO_CONNECTION)
+
+
 def main():
     '''Main entry point for program. Parse arguments and pass to sweeper modules.
     '''
@@ -310,25 +467,39 @@ def main():
             name = args['--schemas']
 
             if name is None or name == 'all':
-                return create_schemas(config.SCHEMAS)
+                create_schemas(config.SCHEMAS)
+                sys.exit()
 
             name = name.lower()
 
             if name in config.SCHEMAS:
-                return create_schemas([name])
+                create_schemas([name])
+                sys.exit()
 
         if args['admin-user']:
-            return create_admin_user(config.ADMIN)
+            create_admin_user(config.ADMIN)
+            sys.exit()
+
+        if args['read-only-user']:
+            create_read_only_user(config.SCHEMAS)
 
         if args['db']:
             name = args['--name'] or config.DB
 
-            return create_db(name.lower(), config.DBO)
+            create_db(name.lower(), config.DBO)
+
+            sys.exit()
 
     if args['import']:
-        return import_data(args['--skip-schema'], args['--skip-if-exists'], args['--dry-run'])
+        import_data(args['--skip-schema'], args['--skip-if-exists'], args['--dry-run'])
 
-    return 1
+        sys.exit()
+
+    if args['fix-geometries']:
+        update_geometry_type(config.DBO_CONNECTION)
+        sys.exit()
+
+    sys.exit()
 
 
 if __name__ == '__main__':
