@@ -11,9 +11,14 @@
   ],
   "cSpell.words": [
     "cloudb",
+    "colorama",
     "conda",
+    "dbname",
     "defn",
+    "docopt",
     "dotenv",
+    "gdal",
+    "geogcs",
     "getenv",
     "globalid",
     "mssql",
@@ -22,7 +27,12 @@
     "objectid",
     "odbc",
     "osgeo",
+    "pgadmin",
+    "postgis",
+    "postgresql",
+    "primem",
     "psycopg",
+    "rolname",
     "stas"
   ]
 }
