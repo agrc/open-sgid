@@ -367,32 +367,6 @@ def update_geometry_type(connection):
                 conn.commit()
 
 
-def create_public_user(props):
-    '''creates the db owner that will do table updates etc
-    '''
-    sql = dedent(
-        f'''
-        CREATE ROLE {props["name"]} WITH
-        LOGIN
-        PASSWORD '{props["password"]}'
-        NOSUPERUSER
-        NOINHERIT
-        NOCREATEDB
-        NOCREATEROLE
-        NOREPLICATION
-        VALID UNTIL 'infinity';
-
-        COMMENT ON ROLE {props["name"]} IS 'Owner of all schemas';
-
-        -- grant admin permissions
-
-        GRANT {props["name"]} TO postgres;
-    '''
-    )
-
-    execute_sql(sql, config.DBO_CONNECTION)
-
-
 def create_read_only_user(schemas):
     '''create public user
     '''
