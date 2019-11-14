@@ -27,7 +27,7 @@ class Logger():
     def info(self, value):
         self._print(value, 'INFO')
 
-    def warning(self, value):
+    def warn(self, value):
         self._print(value, 'WARNING')
 
     def fatal(self, value):

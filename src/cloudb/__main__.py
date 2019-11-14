@@ -4,7 +4,7 @@
 cloudb
 
 Usage:
-  cloudb create db [--name=<name> --verbosity=<level>]
+  cloudb enable postgis [--verbosity=<level>]
   cloudb create schema [--schemas=<name> --verbosity=<level>]
   cloudb create admin-user [--verbosity=<level>]
   cloudb create read-only-user [--verbosity=<level>]
@@ -22,7 +22,7 @@ import psycopg2
 from colorama import Back, Fore, init
 from docopt import docopt
 from osgeo import gdal, ogr
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+import pyodbc
 
 from . import config
 from .logger import Logger
@@ -50,32 +50,10 @@ def execute_sql(sql, connection):
         conn.commit()
 
 
-def create_db(name, owner):
-    '''creates the database with the postgis extension
-    name: string db name
+def enable_postgis():
+    '''enables the postgis extension
     owner: string db owner
     '''
-    LOG.info(f'creating database {name}')
-
-    sql = dedent(f'''
-        CREATE DATABASE {name}
-        WITH
-        OWNER = {owner}
-        ENCODING = 'UTF8'
-        CONNECTION LIMIT = -1;
-    ''')
-
-    admin_connection = config.DBO_CONNECTION
-    admin_connection['database'] = 'postgres'
-
-    LOG.info(f'  executing {sql}')
-
-    with psycopg2.connect(**admin_connection) as conn:
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-
-        with conn.cursor() as cursor:
-            cursor.execute(sql)
-
     LOG.info('enabling postgis')
 
     execute_sql('CREATE EXTENSION postgis;', config.DBO_CONNECTION)
@@ -186,6 +164,46 @@ def _get_tables(connection_string, skip_schemas):
     return layer_schema_map
 
 
+def _get_table_meta():
+    def get_schema_table_name_map(table_name):
+        parts = table_name.split('.')
+
+        if len(parts) != 3:
+            LOG.warn(f'{table_name} does not fit the db.owner.name convention')
+
+        return {'schema': parts[1].lower(), 'table_name': parts[2].lower()}
+
+    def format_title_for_pg(title):
+        if title is None:
+            return title
+
+        new_title = title.lower()
+        new_title = new_title.replace('utah ', '').replace(' ', '_', 100)
+
+        LOG.verbose(f'updating {Fore.MAGENTA}{title}{Fore.RESET} to {Fore.CYAN}{new_title}{Fore.RESET}')
+
+        return new_title
+
+    mapping = {}
+
+    with pyodbc.connect(config.get_source_connection()[6:]) as connection:
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT [TABLENAME],[AGOL_PUBLISHED_NAME] FROM [SGID].[META].[AGOLITEMS]")
+        rows = cursor.fetchall()
+
+        #: table: SGID.ENVIRONMENT.DAQPermitCompApproval
+        #: title: Utah Retail Culinary Water Service Areas
+        for table, title in rows:
+            table_parts = get_schema_table_name_map(table)
+            pg_title = format_title_for_pg(title)
+
+            schema = mapping.setdefault(table_parts['schema'], {})
+            schema[table_parts['table_name']] = pg_title
+
+        return mapping
+
+
 def _check_if_exists(connection_string, schema, table):
     '''returns true or false if a table exists in the connections_string db
     connection_string: string of db to check
@@ -239,6 +257,7 @@ def import_data(skip_schemas, if_not_exists, dry_run):
     internal_sgid = config.get_source_connection()
 
     layer_schema_map = _get_tables(internal_sgid, skip_schemas)
+    agol_meta_map = _get_table_meta()
 
     LOG.info(f'{Fore.BLUE}inserting layers...{Fore.RESET}')
 
@@ -254,6 +273,12 @@ def import_data(skip_schemas, if_not_exists, dry_run):
             #: escape reserved words?
             fields = [f'"{field}"' for field in fields]
             sql = f"SELECT {','.join(fields)} FROM \"{schema}.{layer}\""
+
+        if schema in agol_meta_map and layer in agol_meta_map[schema]:
+            new_name = agol_meta_map[schema][layer]
+
+            if new_name:
+                layer = new_name
 
         pg_options = gdal.VectorTranslateOptions(
             options=[
@@ -436,6 +461,11 @@ def main():
     LOG.init(args['--verbosity'])
     LOG.debug(f'{Back.WHITE}{Fore.BLACK}{args}{Back.RESET}{Fore.RESET}')
 
+    if args['enable']:
+        enable_postgis()
+
+        sys.exit()
+
     if args['create']:
         if args['schema']:
             name = args['--schemas']
@@ -456,13 +486,6 @@ def main():
 
         if args['read-only-user']:
             create_read_only_user(config.SCHEMAS)
-
-        if args['db']:
-            name = args['--name'] or config.DB
-
-            create_db(name.lower(), config.DBO)
-
-            sys.exit()
 
     if args['import']:
         import_data(args['--skip-schema'], args['--skip-if-exists'], args['--dry-run'])
