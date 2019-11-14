@@ -324,7 +324,7 @@ def import_data(skip_schemas, if_not_exists, dry_run):
             options=options,
         )
 
-        LOG.info(f'inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema}{Fore.RESET}')
+        LOG.info(f'inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema}{Fore.RESET} as {Fore.CYAN}{geometry_type}{Fore.RESET}')
         LOG.debug(f'with {Fore.CYAN}{sql}{Fore.RESET}')
 
         if not dry_run:
