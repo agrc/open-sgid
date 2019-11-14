@@ -295,7 +295,7 @@ def import_data(skip_schemas, if_not_exists, dry_run):
             '-lco',
             'PRECISION=YES',
             '-a_srs',
-            '26912',
+            config.UTM,
         ]
 
         if schema in agol_meta_map and layer in agol_meta_map[schema]:
