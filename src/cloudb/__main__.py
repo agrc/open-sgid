@@ -9,7 +9,6 @@ Usage:
   cloudb create admin-user [--verbosity=<level>]
   cloudb create read-only-user [--verbosity=<level>]
   cloudb import [--skip-schema=<names>... --dry-run --verbosity=<level> --skip-if-exists]
-  cloudb fix-geometries [--verbosity=<level>]
 
 Arguments:
   name - all or any of the other iso categories
@@ -337,74 +336,6 @@ def import_data(skip_schemas, if_not_exists, dry_run):
     LOG.info(f'{Fore.GREEN} Completed!')
 
 
-def update_geometry_type(connection):
-    '''checks for a shape field and alters the table to match the geometry type
-    connection: dict of connection properties
-    '''
-
-    with psycopg2.connect(**connection) as conn:
-        with conn.cursor() as cursor:
-            get_geometry_tables = (
-                'SELECT f_table_schema,f_table_name,f_geometry_column FROM public.geometry_columns '
-                'WHERE "type"=\'GEOMETRY\' ORDER BY f_table_schema,f_table_name;'
-            )
-
-            cursor.execute(get_geometry_tables)
-            tables_with_geometry_type = cursor.fetchall()
-
-            for schema, table_name, shape_field in tables_with_geometry_type:
-                LOG.debug(f'getting geometry types from {Fore.CYAN}{schema}.{table_name}{Fore.RESET}')
-
-                cursor.execute(f'SELECT DISTINCT geometrytype({shape_field}) FROM {schema}.{table_name}')
-
-                geometry_type = None
-                count = cursor.rowcount
-
-                LOG.debug(f'found {Fore.CYAN}{count}{Fore.RESET} geometry type')
-
-                if count == 1:
-                    geometry_type, = cursor.fetchone()
-                    LOG.verbose(f'found {Fore.MAGENTA}{geometry_type}{Fore.RESET}')
-
-                    if geometry_type is None:
-                        #: delete shape field; stand alone table
-                        LOG.info(f'no shape type found on {Fore.CYAN}{schema}.{table_name}{Fore.RESET}. {Fore.RED}dropping shape field{Fore.RESET}')
-
-                        cursor.execute(f'ALTER TABLE {schema}.{table_name} DROP COLUMN {shape_field} CASCADE')
-                        conn.commit()
-
-                        continue
-                else:
-                    geometry_types = [geom[0] for geom in cursor.fetchall()]
-
-                    LOG.verbose(f'found {Fore.MAGENTA}{", ".join(geometry_types)}{Fore.RESET}')
-
-                    geometry_type = max(geometry_types, key=len)
-
-                    LOG.verbose(f'chose {Fore.GREEN}{geometry_type}{Fore.RESET}')
-
-                set_geometry_type = (
-                    f'ALTER TABLE {schema}.{table_name} '
-                    f'ALTER COLUMN {shape_field} TYPE GEOMETRY({geometry_type}) '
-                    f'USING ST_SetSRID({shape_field},26912);'
-                )
-
-                if 'multi' in geometry_type.lower():
-                    LOG.verbose(f'{Fore.CYAN}upgrading to {geometry_type.lower()}{Fore.RESET}')
-
-                    upgrade_to_multi = (
-                        f'ALTER TABLE {schema}.{table_name} '
-                        f'ALTER COLUMN {shape_field} TYPE GEOMETRY({geometry_type}) '
-                        f'USING ST_Multi({shape_field});'
-                    )
-
-                    cursor.execute(upgrade_to_multi)
-                    conn.commit()
-
-                cursor.execute(set_geometry_type)
-                conn.commit()
-
-
 def create_read_only_user(schemas):
     '''create public user
     '''
@@ -503,10 +434,6 @@ def main():
     if args['import']:
         import_data(args['--skip-schema'], args['--skip-if-exists'], args['--dry-run'])
 
-        sys.exit()
-
-    if args['fix-geometries']:
-        update_geometry_type(config.DBO_CONNECTION)
         sys.exit()
 
     sys.exit()
