@@ -301,7 +301,7 @@ def import_data(skip_schemas, if_not_exists, dry_run):
         ]
 
         if schema in agol_meta_map and layer in agol_meta_map[schema]:
-            new_name, geometry_type = agol_meta_map[schema][layer]
+            new_name, geometry_type = agol_meta_map[schema][layer].values()
 
             if new_name:
                 layer = new_name
