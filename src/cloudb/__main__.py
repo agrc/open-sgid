@@ -294,9 +294,7 @@ def import_data(skip_schemas, if_not_exists, dry_run):
             'GEOMETRY_NAME=shape',
             '-lco',
             'PRECISION=YES',
-            '-s_srs',
-            '26912',
-            '-spat_srs',
+            '-a_srs',
             '26912',
         ]
 
