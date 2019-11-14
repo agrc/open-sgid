@@ -10,6 +10,7 @@
     "${workspaceRoot}/setup.cfg"
   ],
   "cSpell.words": [
+    "agol",
     "cloudb",
     "colorama",
     "conda",
@@ -32,6 +33,7 @@
     "postgresql",
     "primem",
     "psycopg",
+    "pyodbc",
     "rolname",
     "stas"
   ]
