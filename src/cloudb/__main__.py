@@ -165,6 +165,8 @@ def _get_tables(connection_string, skip_schemas):
 
 
 def _get_table_meta():
+    '''gets the meta data about fields from meta.agolitems
+    '''
     def get_schema_table_name_map(table_name):
         parts = table_name.split('.')
 
@@ -189,17 +191,18 @@ def _get_table_meta():
     with pyodbc.connect(config.get_source_connection()[6:]) as connection:
         cursor = connection.cursor()
 
-        cursor.execute("SELECT [TABLENAME],[AGOL_PUBLISHED_NAME] FROM [SGID].[META].[AGOLITEMS]")
+        cursor.execute("SELECT [TABLENAME],[AGOL_PUBLISHED_NAME],[GEOMETRY_TYPE] FROM [SGID].[META].[AGOLITEMS]")
         rows = cursor.fetchall()
 
         #: table: SGID.ENVIRONMENT.DAQPermitCompApproval
         #: title: Utah Retail Culinary Water Service Areas
-        for table, title in rows:
+        #: geometry_type: POINT POLYGON POLYLINE
+        for table, title, geometry_type in rows:
             table_parts = get_schema_table_name_map(table)
             pg_title = format_title_for_pg(title)
 
             schema = mapping.setdefault(table_parts['schema'], {})
-            schema[table_parts['table_name']] = pg_title
+            schema[table_parts['table_name']] = {'title': pg_title, 'geometry_type': geometry_type}
 
         return mapping
 
@@ -274,41 +277,53 @@ def import_data(skip_schemas, if_not_exists, dry_run):
             fields = [f'"{field}"' for field in fields]
             sql = f"SELECT {','.join(fields)} FROM \"{schema}.{layer}\""
 
+        options = [
+            '-f',
+            'PostgreSQL',
+            '-dialect',
+            'OGRSQL',
+            '-sql',
+            sql,
+            '-lco',
+            'FID=xid',
+            '-lco',
+            f'SCHEMA={schema}',
+            '-lco',
+            'OVERWRITE=YES',
+            '-lco',
+            'GEOMETRY_NAME=shape',
+            '-lco',
+            'PRECISION=YES',
+            '-s_srs',
+            '26912',
+            '-spat_srs',
+            '26912',
+        ]
+
         if schema in agol_meta_map and layer in agol_meta_map[schema]:
-            new_name = agol_meta_map[schema][layer]
+            new_name, geometry_type = agol_meta_map[schema][layer]
 
             if new_name:
                 layer = new_name
 
+            if geometry_type == 'POLYGON':
+                options.append('-nlt')
+                options.append('MULTIPOLYGON')
+            elif geometry_type == 'POLYLINE':
+                options.append('-nlt')
+                options.append('MULTILINESTRING')
+            elif geometry_type == 'STAND ALONE':
+                options.append('-nlt')
+                options.append('NONE')
+            else:
+                options.append('-nlt')
+                options.append(geometry_type)
+
+        options.append('-nln')
+        options.append(f'{layer}')
+
         pg_options = gdal.VectorTranslateOptions(
-            options=[
-                '-f',
-                'PostgreSQL',
-                '-dialect',
-                'OGRSQL',
-                '-sql',
-                sql,
-                '-lco',
-                'FID=xid',
-                '-lco',
-                f'SCHEMA={schema}',
-                '-lco',
-                'OVERWRITE=YES',
-                '-lco',
-                'GEOMETRY_NAME=shape',
-                # '-lco',
-                # 'GEOM_TYPE=geometry',
-                '-lco',
-                'PRECISION=YES',
-                '-nlt',
-                'PROMOTE_TO_MULTI',
-                '-nln',
-                f'{layer}',
-                '-s_srs',
-                config.UTM,
-                '-spat_srs',
-                config.UTM,
-            ],
+            options=options,
         )
 
         LOG.info(f'inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema}{Fore.RESET}')
