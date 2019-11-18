@@ -8,6 +8,7 @@ Usage:
   cloudb create schema [--schemas=<name> --verbosity=<level>]
   cloudb create admin-user [--verbosity=<level>]
   cloudb create read-only-user [--verbosity=<level>]
+  cloudb drop schema [--schemas=<name> --verbosity=<level>]
   cloudb import [--skip-schema=<names>... --dry-run --verbosity=<level> --skip-if-exists]
 
 Arguments:
@@ -98,6 +99,23 @@ def create_schemas(schemas):
             sql.append(f'GRANT USAGE ON SCHEMA {name} TO public')
 
         LOG.info(f'creating schemas for {sql}')
+        with conn.cursor() as cursor:
+            cursor.execute(';'.join(sql))
+
+        conn.commit()
+
+
+def drop_schemas(schemas):
+    '''drops the schemas and all tables within
+    schemas: array of schemas to create
+    '''
+    with psycopg2.connect(**config.DBO_CONNECTION) as conn:
+        sql = []
+
+        for name in schemas:
+            sql.append(f'DROP SCHEMA {name} CASCADE')
+
+        LOG.info(f'dropping schema for {sql}')
         with conn.cursor() as cursor:
             cursor.execute(';'.join(sql))
 
@@ -430,6 +448,20 @@ def main():
 
         if args['read-only-user']:
             create_read_only_user(config.SCHEMAS)
+
+    if args['drop']:
+        if args['schema']:
+            name = args['--schemas']
+
+            if name is None or name == 'all':
+                drop_schemas(config.SCHEMAS)
+                sys.exit()
+
+            name = name.lower()
+
+            if name in config.SCHEMAS:
+                drop_schemas([name])
+                sys.exit()
 
     if args['import']:
         import_data(args['--skip-schema'], args['--skip-if-exists'], args['--dry-run'])
