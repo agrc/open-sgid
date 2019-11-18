@@ -112,7 +112,7 @@ variable ip_configuration {
 variable db_name {
   type        = string
   description = "Name of the default database to create"
-  default     = "cloud"
+  default     = "opensgid"
 }
 
 variable user_name {

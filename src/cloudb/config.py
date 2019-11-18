@@ -19,7 +19,7 @@ SCHEMAS = [
 EXCLUDE_SCHEMAS = ['sde', 'meta']
 EXCLUDE_FIELDS = ['objectid', 'fid', 'globalid', 'gdb_geomattr_data']
 
-DB = 'cloud'
+DB = 'opensgid'
 
 DBO = 'postgres'
 
