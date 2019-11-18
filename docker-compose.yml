@@ -3,5 +3,5 @@ services:
   pgadmin:
     image: dpage/pgadmin4
     ports:
-      - "8080:80"
+      - '8080:80'
     env_file: .env
