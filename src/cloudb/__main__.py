@@ -197,7 +197,7 @@ def _get_table_meta():
             return title
 
         new_title = title.lower()
-        new_title = new_title.replace('utah ', '').replace(' ', '_', 100)
+        new_title = new_title.replace('utah ', '', 1).replace(' ', '_')
 
         LOG.verbose(f'updating {Fore.MAGENTA}{title}{Fore.RESET} to {Fore.CYAN}{new_title}{Fore.RESET}')
 
@@ -234,7 +234,7 @@ def _check_if_exists(connection_string, schema, table, agol_meta_map):
     LOG.debug('checking cache')
 
     if schema in agol_meta_map and table in agol_meta_map[schema]:
-            table, _ = agol_meta_map[schema][table].values()
+        table, _ = agol_meta_map[schema][table].values()
 
     if connection_string in CONNECTION_TABLE_CACHE and len(CONNECTION_TABLE_CACHE[connection_string]) > 0:
         LOG.verbose('cache populated')
