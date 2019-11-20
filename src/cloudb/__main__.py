@@ -224,7 +224,7 @@ def _get_table_meta():
         return mapping
 
 
-def _check_if_exists(connection_string, schema, table):
+def _check_if_exists(connection_string, schema, table, agol_meta_map):
     '''returns true or false if a table exists in the connections_string db
     connection_string: string of db to check
     schema: string schema name
@@ -232,6 +232,9 @@ def _check_if_exists(connection_string, schema, table):
     returns: bool
     '''
     LOG.debug('checking cache')
+
+    if schema in agol_meta_map and table in agol_meta_map[schema]:
+            table, _ = agol_meta_map[schema][table].values()
 
     if connection_string in CONNECTION_TABLE_CACHE and len(CONNECTION_TABLE_CACHE[connection_string]) > 0:
         LOG.verbose('cache populated')
@@ -282,8 +285,8 @@ def import_data(skip_schemas, if_not_exists, dry_run):
     LOG.info(f'{Fore.BLUE}inserting layers...{Fore.RESET}')
 
     for schema, layer, fields in layer_schema_map:
-        if if_not_exists and _check_if_exists(cloud_db, schema, layer):
-            LOG.debug(f' -skipping {Fore.RED}{schema}.{layer}{Fore.RESET}: already exists')
+        if if_not_exists and _check_if_exists(cloud_db, schema, layer, agol_meta_map):
+            LOG.info(f' -skipping {Fore.RED}{schema}.{layer}{Fore.RESET}: already exists')
 
             continue
 
