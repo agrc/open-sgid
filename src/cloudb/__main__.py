@@ -9,26 +9,23 @@ Usage:
   cloudb create admin-user [--verbosity=<level>]
   cloudb create read-only-user [--verbosity=<level>]
   cloudb drop schema [--schemas=<name> --verbosity=<level>]
-  cloudb import [--skip-schema=<names>... --dry-run --verbosity=<level> --skip-if-exists]
+  cloudb import [--missing --skip-schema=<names>... --dry-run --verbosity=<level> --skip-if-exists]
+  cloudb trim [--dry-run --verbosity=<level>]
 
 Arguments:
   name - all or any of the other iso categories
 '''
 
 import sys
-from textwrap import dedent
 
 import psycopg2
 from colorama import Back, Fore, init
 from docopt import docopt
 from osgeo import gdal, ogr
+
 import pyodbc
 
-from . import config
-from .logger import Logger
-
-LOG = Logger()
-CONNECTION_TABLE_CACHE = {}
+from . import CONNECTION_TABLE_CACHE, LOG, config, roles, schema
 
 gdal.SetConfigOption('MSSQLSPATIAL_LIST_ALL_TABLES', 'YES')
 gdal.SetConfigOption('PG_LIST_ALL_TABLES', 'YES')
@@ -41,7 +38,7 @@ def execute_sql(sql, connection):
     sql: string T-SQL
     connection: dict with connection information
     '''
-    LOG.info(f'  executing {sql}')
+    LOG.debug(f'  executing {sql}')
 
     with psycopg2.connect(**connection) as conn:
         with conn.cursor() as cursor:
@@ -59,70 +56,7 @@ def enable_postgis():
     execute_sql('CREATE EXTENSION postgis;', config.DBO_CONNECTION)
 
 
-def create_admin_user(props):
-    '''creates the admin user that owns the schemas
-    props: dictionary with credentials for user
-    '''
-    sql = dedent(
-        f'''
-        CREATE ROLE {props["name"]} WITH
-        LOGIN
-        PASSWORD '{props["password"]}'
-        NOSUPERUSER
-        INHERIT
-        NOCREATEDB
-        NOCREATEROLE
-        NOREPLICATION
-        VALID UNTIL 'infinity';
-
-        COMMENT ON ROLE {props["name"]} IS 'Owner of all schemas';
-
-        -- grant admin permissions
-
-        GRANT {props["name"]} TO postgres;
-    '''
-    )
-
-    execute_sql(sql, config.DBO_CONNECTION)
-
-
-def create_schemas(schemas):
-    '''creates the schemas to match our ISO categories
-    schemas: array of schemas to create
-    '''
-    with psycopg2.connect(**config.DBO_CONNECTION) as conn:
-        sql = []
-
-        for name in schemas:
-            sql.append(f'CREATE SCHEMA IF NOT EXISTS {name} AUTHORIZATION {config.ADMIN["name"]}')
-            sql.append(f'GRANT ALL ON SCHEMA {name} TO {config.ADMIN["name"]}')
-            sql.append(f'GRANT USAGE ON SCHEMA {name} TO public')
-
-        LOG.info(f'creating schemas for {sql}')
-        with conn.cursor() as cursor:
-            cursor.execute(';'.join(sql))
-
-        conn.commit()
-
-
-def drop_schemas(schemas):
-    '''drops the schemas and all tables within
-    schemas: array of schemas to create
-    '''
-    with psycopg2.connect(**config.DBO_CONNECTION) as conn:
-        sql = []
-
-        for name in schemas:
-            sql.append(f'DROP SCHEMA {name} CASCADE')
-
-        LOG.info(f'dropping schema for {sql}')
-        with conn.cursor() as cursor:
-            cursor.execute(';'.join(sql))
-
-        conn.commit()
-
-
-def _get_tables(connection_string, skip_schemas):
+def _get_tables(connection_string, skip_schemas, missing_only):
     '''creates a list of tables with fields from the connection string
     connection_string: string to connect to db
     skip_schemas: array of schemas to ignore when building the list
@@ -132,6 +66,16 @@ def _get_tables(connection_string, skip_schemas):
 
     if skip_schemas and len(skip_schemas) > 0:
         config.EXCLUDE_SCHEMAS.extend(skip_schemas)
+
+    include_tables = []
+    if missing_only:
+        source, destination = _get_table_sets()
+        include_tables = destination - source
+
+        LOG.info(f'there are {Fore.CYAN}{len(include_tables)}{Fore.RESET} tables in the source not in the destination')
+
+        if len(include_tables) == 0:
+            return layer_schema_map
 
     LOG.verbose('connecting to database')
     connection = gdal.OpenEx(connection_string)
@@ -143,14 +87,14 @@ def _get_tables(connection_string, skip_schemas):
 
     for table_index in range(table_count):
         qualified_layer = connection.GetLayerByIndex(table_index)
-        schema, layer = qualified_layer.GetName().split('.')
-        schema = schema.lower()
+        schema_name, layer = qualified_layer.GetName().split('.')
+        schema_name = schema_name.lower()
         layer = layer.lower()
 
-        LOG.debug(f'- {Fore.CYAN}{schema}.{layer}{Fore.RESET}')
+        LOG.debug(f'- {Fore.CYAN}{schema_name}.{layer}{Fore.RESET}')
 
-        if schema in config.EXCLUDE_SCHEMAS:
-            LOG.verbose(f' {Fore.RED}- skipping:{Fore.RESET} {schema}')
+        if schema_name in config.EXCLUDE_SCHEMAS or layer not in include_tables:
+            LOG.verbose(f' {Fore.RED}- skipping:{Fore.RESET} {schema_name}')
 
             continue
 
@@ -169,7 +113,7 @@ def _get_tables(connection_string, skip_schemas):
 
             fields.append(field_name)
 
-        layer_schema_map.append((schema, layer, fields))
+        layer_schema_map.append((schema_name, layer, fields))
 
         del qualified_layer
 
@@ -181,28 +125,36 @@ def _get_tables(connection_string, skip_schemas):
     return layer_schema_map
 
 
+def _get_schema_table_name_map(table_name):
+    '''a method to split a qualified table into it's parts
+    '''
+    parts = table_name.split('.')
+
+    schema_index = 1
+    table_index = 2
+
+    if len(parts) == 2:
+        schema_index = 0
+        table_index = 1
+
+    return {'schema': parts[schema_index].lower(), 'table_name': parts[table_index].lower()}
+
+
+def _format_title_for_pg(title):
+    if title is None:
+        return title
+
+    new_title = title.lower()
+    new_title = new_title.replace('utah ', '', 1).replace(' ', '_')
+
+    LOG.verbose(f'updating {Fore.MAGENTA}{title}{Fore.RESET} to {Fore.CYAN}{new_title}{Fore.RESET}')
+
+    return new_title
+
+
 def _get_table_meta():
     '''gets the meta data about fields from meta.agolitems
     '''
-    def get_schema_table_name_map(table_name):
-        parts = table_name.split('.')
-
-        if len(parts) != 3:
-            LOG.warn(f'{table_name} does not fit the db.owner.name convention')
-
-        return {'schema': parts[1].lower(), 'table_name': parts[2].lower()}
-
-    def format_title_for_pg(title):
-        if title is None:
-            return title
-
-        new_title = title.lower()
-        new_title = new_title.replace('utah ', '', 1).replace(' ', '_')
-
-        LOG.verbose(f'updating {Fore.MAGENTA}{title}{Fore.RESET} to {Fore.CYAN}{new_title}{Fore.RESET}')
-
-        return new_title
-
     mapping = {}
 
     with pyodbc.connect(config.get_source_connection()[6:]) as connection:
@@ -215,31 +167,21 @@ def _get_table_meta():
         #: title: Utah Retail Culinary Water Service Areas
         #: geometry_type: POINT POLYGON POLYLINE
         for table, title, geometry_type in rows:
-            table_parts = get_schema_table_name_map(table)
-            pg_title = format_title_for_pg(title)
+            table_parts = _get_schema_table_name_map(table)
+            pg_title = _format_title_for_pg(title)
 
-            schema = mapping.setdefault(table_parts['schema'], {})
-            schema[table_parts['table_name']] = {'title': pg_title, 'geometry_type': geometry_type}
+            schema_name = mapping.setdefault(table_parts['schema'], {})
+            schema_name[table_parts['table_name']] = {'title': pg_title, 'geometry_type': geometry_type}
 
         return mapping
 
 
-def _check_if_exists(connection_string, schema, table, agol_meta_map):
-    '''returns true or false if a table exists in the connections_string db
-    connection_string: string of db to check
-    schema: string schema name
-    table: string table name
-    returns: bool
+def _populate_table_cache(connection_string, pgify=False, name_map=None):
+    '''adds all the table from a connection string to a dictionary for caching purposes
+    pgify: lowercases and adds underscores
+    name_map: is a dictionary to replace names from the meta table
     '''
-    LOG.debug('checking cache')
-
-    if schema in agol_meta_map and table in agol_meta_map[schema]:
-        table, _ = agol_meta_map[schema][table].values()
-
-    if connection_string in CONNECTION_TABLE_CACHE and len(CONNECTION_TABLE_CACHE[connection_string]) > 0:
-        LOG.verbose('cache populated')
-        return f'{schema}.{table}' in CONNECTION_TABLE_CACHE[connection_string]
-
+    skip_schema = ['meta', 'sde']
     LOG.verbose('connecting to database')
     #: gdal.open gave a 0 table count
     connection = ogr.Open(connection_string)
@@ -256,21 +198,56 @@ def _check_if_exists(connection_string, schema, table, agol_meta_map):
         if qualified_layer:
             name = qualified_layer.GetName()
 
+            table_parts = _get_schema_table_name_map(name)
+            name = f"{table_parts['schema']}.{table_parts['table_name']}"
+
+            if table_parts['schema'] in skip_schema:
+                continue
+
+            if pgify:
+                pg_title = _format_title_for_pg(table_parts['table_name'])
+                schema_name = table_parts['schema']
+
+                if schema_name in name_map and pg_title in name_map[schema_name]:
+                    table, _ = name_map[schema_name][pg_title].values()
+                name = f"{schema_name}.{table}"
+
             LOG.verbose(f'found layer: {name}')
 
             CONNECTION_TABLE_CACHE[connection_string].append(name)
+
+    del qualified_layer
+    connection = None
+
+
+def _check_if_exists(connection_string, schema_name, table, agol_meta_map):
+    '''returns true or false if a table exists in the connections_string db
+    connection_string: string of db to check
+    schema_name: string schema name
+    table: string table name
+    returns: bool
+    '''
+    LOG.debug('checking cache')
+
+    if schema_name in agol_meta_map and table in agol_meta_map[schema_name]:
+        table, _ = agol_meta_map[schema_name][table].values()
+
+    if connection_string in CONNECTION_TABLE_CACHE and len(CONNECTION_TABLE_CACHE[connection_string]) > 0:
+        LOG.verbose('cache hit')
+
+        return f'{schema_name}.{table}' in CONNECTION_TABLE_CACHE[connection_string]
+
+    LOG.verbose('cache miss')
+    _populate_table_cache(connection_string)
 
     found = False
     if f'{schema}.{table}' in CONNECTION_TABLE_CACHE[connection_string]:
         found = True
 
-    del qualified_layer
-    connection = None
-
     return found
 
 
-def import_data(skip_schemas, if_not_exists, dry_run):
+def import_data(skip_schemas, if_not_exists, dry_run, missing_only):
     '''imports data from sql to postgis
     skip_schemas: array of schema strings to skip
     if_not_exists: create new tables if the destination does not have it
@@ -279,23 +256,29 @@ def import_data(skip_schemas, if_not_exists, dry_run):
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
-    layer_schema_map = _get_tables(internal_sgid, skip_schemas)
+    layer_schema_map = _get_tables(internal_sgid, skip_schemas, missing_only)
+
+    if len(layer_schema_map) == 0:
+        LOG.info(f'{Fore.GREEN} Completed!')
+
+        return
+
     agol_meta_map = _get_table_meta()
 
     LOG.info(f'{Fore.BLUE}inserting layers...{Fore.RESET}')
 
-    for schema, layer, fields in layer_schema_map:
-        if if_not_exists and _check_if_exists(cloud_db, schema, layer, agol_meta_map):
-            LOG.info(f' -skipping {Fore.RED}{schema}.{layer}{Fore.RESET}: already exists')
+    for schema_name, layer, fields in layer_schema_map:
+        if if_not_exists and _check_if_exists(cloud_db, schema_name, layer, agol_meta_map):
+            LOG.info(f' -skipping {Fore.RED}{schema_name}.{layer}{Fore.RESET}: already exists')
 
             continue
 
-        sql = f'SELECT objectid FROM "{schema}.{layer}"'
+        sql = f'SELECT objectid FROM "{schema_name}.{layer}"'
 
         if len(fields) > 0:
             #: escape reserved words?
             fields = [f'"{field}"' for field in fields]
-            sql = f"SELECT {','.join(fields)} FROM \"{schema}.{layer}\""
+            sql = f"SELECT {','.join(fields)} FROM \"{schema_name}.{layer}\""
 
         options = [
             '-f',
@@ -307,7 +290,7 @@ def import_data(skip_schemas, if_not_exists, dry_run):
             '-lco',
             'FID=xid',
             '-lco',
-            f'SCHEMA={schema}',
+            f'SCHEMA={schema_name}',
             '-lco',
             'OVERWRITE=YES',
             '-lco',
@@ -318,8 +301,8 @@ def import_data(skip_schemas, if_not_exists, dry_run):
             config.UTM,
         ]
 
-        if schema in agol_meta_map and layer in agol_meta_map[schema]:
-            new_name, geometry_type = agol_meta_map[schema][layer].values()
+        if schema_name in agol_meta_map and layer in agol_meta_map[schema_name]:
+            new_name, geometry_type = agol_meta_map[schema_name][layer].values()
 
             if new_name:
                 layer = new_name
@@ -344,7 +327,7 @@ def import_data(skip_schemas, if_not_exists, dry_run):
             options=options,
         )
 
-        LOG.info(f'inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema}{Fore.RESET} as {Fore.CYAN}{geometry_type}{Fore.RESET}')
+        LOG.info(f'inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema_name}{Fore.RESET} as {Fore.CYAN}{geometry_type}{Fore.RESET}')
         LOG.debug(f'with {Fore.CYAN}{sql}{Fore.RESET}')
 
         if not dry_run:
@@ -357,64 +340,45 @@ def import_data(skip_schemas, if_not_exists, dry_run):
     LOG.info(f'{Fore.GREEN} Completed!')
 
 
-def create_read_only_user(schemas):
-    '''create public user
+def _get_table_sets():
+    '''gets a set of each schema.tablename from the source and destination database to help figure out what is different between them
+    '''
+    cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
+    internal_sgid = config.get_source_connection()
+
+    if cloud_db not in CONNECTION_TABLE_CACHE:
+        _populate_table_cache(cloud_db)
+
+    if internal_sgid not in CONNECTION_TABLE_CACHE:
+        _populate_table_cache(internal_sgid, pgify=True, name_map=_get_table_meta())
+
+    source = set(CONNECTION_TABLE_CACHE[cloud_db])
+    destination = set(CONNECTION_TABLE_CACHE[internal_sgid])
+
+    return source, destination
+
+
+def trim(dry_run):
+    '''get source tables with updated names
+    get destination tables with original names
+    drop the tables in the destination found in the difference between the two sets
     '''
 
-    LOG.info(f'creating {Fore.CYAN}read only{Fore.RESET} role')
+    source, destination = _get_table_sets()
+    items_to_trim = source - destination
 
-    with psycopg2.connect(**config.DBO_CONNECTION) as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname='read_only'")
-            role = cursor.fetchone()
+    LOG.info(f'there are {Fore.CYAN}{len(items_to_trim)}{Fore.RESET} tables in the destination not in the source')
 
-            if role is None or role[0] != 1:
-                sql = dedent(
-                    f'''
-                        CREATE ROLE read_only WITH
-                        NOSUPERUSER
-                        NOCREATEDB
-                        NOCREATEROLE
-                        NOINHERIT
-                        NOLOGIN
-                        NOREPLICATION
-                        VALID UNTIL 'infinity';
+    if len(items_to_trim) == 0:
+        return
 
-                        -- grant privileges
+    sql = f'DROP TABLE {",".join(items_to_trim)}'
+    LOG.info(f'dropping {items_to_trim}')
 
-                        GRANT CONNECT ON DATABASE {config.DB} TO read_only;
-                        GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO read_only;
-                        GRANT USAGE ON SCHEMA public TO read_only;
-                        '''
-                )
+    if not dry_run:
+        execute_sql(sql, config.DBO_CONNECTION)
 
-                execute_sql(sql, config.DBO_CONNECTION)
-
-            conn.commit()
-
-    sql = []
-
-    for name in schemas:
-        sql.append(f'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {name} TO read_only')
-        sql.append(f'GRANT SELECT ON ALL TABLES IN SCHEMA {name} TO read_only')
-        sql.append(f'GRANT USAGE ON SCHEMA {name} TO read_only')
-
-    execute_sql(';'.join(sql), config.DBO_CONNECTION)
-
-    LOG.info(f'adding {Fore.CYAN}agrc{Fore.RESET} user to {Fore.MAGENTA}read only{Fore.RESET} role')
-
-    sql = dedent(
-        f'''
-        DROP ROLE IF EXISTS agrc;
-        CREATE ROLE agrc WITH
-        LOGIN
-        PASSWORD 'agrc'
-        IN ROLE read_only
-        VALID UNTIL 'infinity';
-        '''
-    )
-
-    execute_sql(sql, config.DBO_CONNECTION)
+    LOG.info(f'{Fore.GREEN}finished{Fore.RESET}')
 
 
 def main():
@@ -436,38 +400,43 @@ def main():
             name = args['--schemas']
 
             if name is None or name == 'all':
-                create_schemas(config.SCHEMAS)
+                schema.create_schemas(config.SCHEMAS)
                 sys.exit()
 
             name = name.lower()
 
             if name in config.SCHEMAS:
-                create_schemas([name])
+                schema.create_schemas([name])
                 sys.exit()
 
         if args['admin-user']:
-            create_admin_user(config.ADMIN)
+            roles.create_admin_user(config.ADMIN)
             sys.exit()
 
         if args['read-only-user']:
-            create_read_only_user(config.SCHEMAS)
+            roles.create_read_only_user(config.SCHEMAS)
 
     if args['drop']:
         if args['schema']:
             name = args['--schemas']
 
             if name is None or name == 'all':
-                drop_schemas(config.SCHEMAS)
+                schema.drop_schemas(config.SCHEMAS)
                 sys.exit()
 
             name = name.lower()
 
             if name in config.SCHEMAS:
-                drop_schemas([name])
+                schema.drop_schemas([name])
                 sys.exit()
 
     if args['import']:
-        import_data(args['--skip-schema'], args['--skip-if-exists'], args['--dry-run'])
+        import_data(args['--skip-schema'], args['--skip-if-exists'], args['--dry-run'], args['--missing'])
+
+        sys.exit()
+
+    if args['trim']:
+        trim(args['--dry-run'])
 
         sys.exit()
 
