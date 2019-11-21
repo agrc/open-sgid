@@ -18,6 +18,7 @@ Arguments:
 '''
 
 import sys
+from time import perf_counter
 
 import psycopg2
 from colorama import Back, Fore, init
@@ -26,7 +27,7 @@ from osgeo import gdal, ogr
 
 import pyodbc
 
-from . import CONNECTION_TABLE_CACHE, LOG, config, roles, schema
+from . import CONNECTION_TABLE_CACHE, LOG, config, roles, schema, utils
 
 gdal.SetConfigOption('MSSQLSPATIAL_LIST_ALL_TABLES', 'YES')
 gdal.SetConfigOption('PG_LIST_ALL_TABLES', 'YES')
@@ -303,7 +304,9 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
     LOG.debug(f'with {Fore.CYAN}{sql}{Fore.RESET}')
 
     if not dry_run:
+        start_seconds = perf_counter()
         result = gdal.VectorTranslate(cloud_db, internal_sgid, options=pg_options)
+        LOG.debug(f'- {Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
 
         del result
 
@@ -324,8 +327,6 @@ def import_data(if_not_exists, missing_only, dry_run):
         LOG.info(f'there are {Fore.CYAN}{len(tables)}{Fore.RESET} tables in the source not in the destination')
 
         if len(tables) == 0:
-            LOG.info(f'{Fore.GREEN} Completed!')
-
             return
 
     layer_schema_map = _get_tables_with_fields(internal_sgid, tables)
@@ -338,8 +339,6 @@ def import_data(if_not_exists, missing_only, dry_run):
             continue
 
         _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
-
-    LOG.info(f'{Fore.GREEN}Completed!{Fore.RESET}')
 
 
 def _get_table_sets():
@@ -391,14 +390,14 @@ def update(specific_tables, dry_run):
     internal_sgid = config.get_source_connection()
 
     if not specific_tables or len(specific_tables) == 0:
-        LOG.info(f'{Fore.YELLOW} No tables to import!{Fore.RESET}')
+        LOG.info(f'{Fore.YELLOW} no tables to import!{Fore.RESET}')
 
         return
 
     layer_schema_map = _get_tables_with_fields(internal_sgid, specific_tables)
 
     if len(layer_schema_map) == 0:
-        LOG.info(f'{Fore.YELLOW} No matching table found!{Fore.RESET}')
+        LOG.info(f'{Fore.YELLOW} no matching table found!{Fore.RESET}')
 
         return
 
@@ -407,13 +406,11 @@ def update(specific_tables, dry_run):
     if len(specific_tables) != len(layer_schema_map):
         LOG.warn((
             f'{Back.YELLOW}{Fore.BLACK}input {len(specific_tables)} tables but only {len(layer_schema_map)} found.{Fore.RESET}{Back.RESET} '
-            'Check your spelling'
+            'check your spelling'
         ))
 
     for schema_name, layer, fields in layer_schema_map:
         _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
-
-    LOG.info(f'{Fore.GREEN}Completed!{Fore.RESET}')
 
 
 def main():
@@ -422,11 +419,15 @@ def main():
     init()
     args = docopt(__doc__, version='1.0.0')
 
+    start_seconds = perf_counter()
+
     LOG.init(args['--verbosity'])
     LOG.debug(f'{Back.WHITE}{Fore.BLACK}{args}{Back.RESET}{Fore.RESET}')
 
     if args['enable']:
         enable_postgis()
+
+        LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
 
         sys.exit()
 
@@ -446,10 +447,17 @@ def main():
 
         if args['admin-user']:
             roles.create_admin_user(config.ADMIN)
+
+            LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+
             sys.exit()
 
         if args['read-only-user']:
             roles.create_read_only_user(config.SCHEMAS)
+
+            LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+
+            sys.exit()
 
     if args['drop']:
         if args['schema']:
@@ -457,28 +465,42 @@ def main():
 
             if name is None or name == 'all':
                 schema.drop_schemas(config.SCHEMAS)
+
+                LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+
                 sys.exit()
 
             name = name.lower()
 
             if name in config.SCHEMAS:
                 schema.drop_schemas([name])
+
+                LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+
                 sys.exit()
 
     if args['import']:
         import_data(args['--skip-if-exists'], args['--missing'], args['--dry-run'])
+
+        LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
 
         sys.exit()
 
     if args['trim']:
         trim(args['--dry-run'])
 
+        LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+
         sys.exit()
 
     if args['update']:
         update(args['--table'], args['--dry-run'])
 
+        LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+
         sys.exit()
+
+    LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
 
     sys.exit()
 
