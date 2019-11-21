@@ -9,8 +9,9 @@ Usage:
   cloudb create admin-user [--verbosity=<level>]
   cloudb create read-only-user [--verbosity=<level>]
   cloudb drop schema [--schemas=<name> --verbosity=<level>]
-  cloudb import [--missing --skip-schema=<names>... --dry-run --verbosity=<level> --skip-if-exists]
+  cloudb import [--missing --dry-run --verbosity=<level> --skip-if-exists]
   cloudb trim [--dry-run --verbosity=<level>]
+  cloudb update [--table=<tables>... --dry-run --verbosity=<level>]
 
 Arguments:
   name - all or any of the other iso categories
@@ -56,26 +57,19 @@ def enable_postgis():
     execute_sql('CREATE EXTENSION postgis;', config.DBO_CONNECTION)
 
 
-def _get_tables(connection_string, skip_schemas, missing_only):
+def _get_tables_with_fields(connection_string, specific_tables):
     '''creates a list of tables with fields from the connection string
     connection_string: string to connect to db
-    skip_schemas: array of schemas to ignore when building the list
+    specific_tables: array of tables to get
     returns: array of tuples with 0: schema, 1: table name: 2: array of field names
     '''
     layer_schema_map = []
+    filter_tables = False
 
-    if skip_schemas and len(skip_schemas) > 0:
-        config.EXCLUDE_SCHEMAS.extend(skip_schemas)
+    if specific_tables and len(specific_tables) > 0:
+        LOG.debug(f'{Fore.CYAN}filtering for specific tables{Fore.RESET}')
 
-    include_tables = []
-    if missing_only:
-        source, destination = _get_table_sets()
-        include_tables = destination - source
-
-        LOG.info(f'there are {Fore.CYAN}{len(include_tables)}{Fore.RESET} tables in the source not in the destination')
-
-        if len(include_tables) == 0:
-            return layer_schema_map
+        filter_tables = True
 
     LOG.verbose('connecting to database')
     connection = gdal.OpenEx(connection_string)
@@ -83,7 +77,7 @@ def _get_tables(connection_string, skip_schemas, missing_only):
     LOG.verbose('getting layer count')
     table_count = connection.GetLayerCount()
 
-    LOG.info(f'found {Fore.YELLOW}{table_count}{Fore.RESET} total tables')
+    LOG.info(f'discovered {Fore.YELLOW}{table_count}{Fore.RESET} tables')
 
     for table_index in range(table_count):
         qualified_layer = connection.GetLayerByIndex(table_index)
@@ -93,7 +87,7 @@ def _get_tables(connection_string, skip_schemas, missing_only):
 
         LOG.debug(f'- {Fore.CYAN}{schema_name}.{layer}{Fore.RESET}')
 
-        if schema_name in config.EXCLUDE_SCHEMAS or layer not in include_tables:
+        if schema_name in config.EXCLUDE_SCHEMAS or filter_tables and layer not in specific_tables:
             LOG.verbose(f' {Fore.RED}- skipping:{Fore.RESET} {schema_name}')
 
             continue
@@ -117,7 +111,7 @@ def _get_tables(connection_string, skip_schemas, missing_only):
 
         del qualified_layer
 
-    LOG.info(f'found {Fore.GREEN}{len(layer_schema_map)}{Fore.RESET} tables for import')
+    LOG.info(f'planning to import {Fore.GREEN}{len(layer_schema_map)}{Fore.RESET} tables')
     layer_schema_map.sort(key=lambda items: items[0])
 
     connection = None
@@ -247,97 +241,105 @@ def _check_if_exists(connection_string, schema_name, table, agol_meta_map):
     return found
 
 
-def import_data(skip_schemas, if_not_exists, dry_run, missing_only):
+def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
+    '''the insert logic for writing to the destination
+    '''
+    cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
+    internal_sgid = config.get_source_connection()
+
+    sql = f'SELECT objectid FROM "{schema_name}.{layer}"'
+
+    if len(fields) > 0:
+        #: escape reserved words?
+        fields = [f'"{field}"' for field in fields]
+        sql = f"SELECT {','.join(fields)} FROM \"{schema_name}.{layer}\""
+
+    options = [
+        '-f',
+        'PostgreSQL',
+        '-dialect',
+        'OGRSQL',
+        '-sql',
+        sql,
+        '-lco',
+        'FID=xid',
+        '-lco',
+        f'SCHEMA={schema_name}',
+        '-lco',
+        'OVERWRITE=YES',
+        '-lco',
+        'GEOMETRY_NAME=shape',
+        '-lco',
+        'PRECISION=YES',
+        '-a_srs',
+        config.UTM,
+    ]
+
+    if schema_name in agol_meta_map and layer in agol_meta_map[schema_name]:
+        new_name, geometry_type = agol_meta_map[schema_name][layer].values()
+
+        if new_name:
+            layer = new_name
+
+        if geometry_type == 'POLYGON':
+            options.append('-nlt')
+            options.append('MULTIPOLYGON')
+        elif geometry_type == 'POLYLINE':
+            options.append('-nlt')
+            options.append('MULTILINESTRING')
+        elif geometry_type == 'STAND ALONE':
+            options.append('-nlt')
+            options.append('NONE')
+        else:
+            options.append('-nlt')
+            options.append(geometry_type)
+
+    options.append('-nln')
+    options.append(f'{layer}')
+
+    pg_options = gdal.VectorTranslateOptions(options=options)
+
+    LOG.info(f'- inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema_name}{Fore.RESET} as {Fore.CYAN}{geometry_type}{Fore.RESET}')
+    LOG.debug(f'with {Fore.CYAN}{sql}{Fore.RESET}')
+
+    if not dry_run:
+        result = gdal.VectorTranslate(cloud_db, internal_sgid, options=pg_options)
+
+        del result
+
+
+def import_data(if_not_exists, missing_only, dry_run):
     '''imports data from sql to postgis
-    skip_schemas: array of schema strings to skip
     if_not_exists: create new tables if the destination does not have it
     dry_run: do not modify the destination
     '''
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
-    layer_schema_map = _get_tables(internal_sgid, skip_schemas, missing_only)
+    tables = []
+    if missing_only:
+        source, destination = _get_table_sets()
+        tables = destination - source
 
-    if len(layer_schema_map) == 0:
-        LOG.info(f'{Fore.GREEN} Completed!')
+        LOG.info(f'there are {Fore.CYAN}{len(tables)}{Fore.RESET} tables in the source not in the destination')
 
-        return
+        if len(tables) == 0:
+            LOG.info(f'{Fore.GREEN} Completed!')
 
+            return
+
+    layer_schema_map = _get_tables_with_fields(internal_sgid, tables)
     agol_meta_map = _get_table_meta()
-
-    LOG.info(f'{Fore.BLUE}inserting layers...{Fore.RESET}')
 
     for schema_name, layer, fields in layer_schema_map:
         if if_not_exists and _check_if_exists(cloud_db, schema_name, layer, agol_meta_map):
-            LOG.info(f' -skipping {Fore.RED}{schema_name}.{layer}{Fore.RESET}: already exists')
+            LOG.info(f'- skipping {Fore.MAGENTA}{schema_name}.{layer} {Fore.CYAN}already exists{Fore.RESET}')
 
             continue
 
-        sql = f'SELECT objectid FROM "{schema_name}.{layer}"'
+        _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
 
-        if len(fields) > 0:
-            #: escape reserved words?
-            fields = [f'"{field}"' for field in fields]
-            sql = f"SELECT {','.join(fields)} FROM \"{schema_name}.{layer}\""
-
-        options = [
-            '-f',
-            'PostgreSQL',
-            '-dialect',
-            'OGRSQL',
-            '-sql',
-            sql,
-            '-lco',
-            'FID=xid',
-            '-lco',
-            f'SCHEMA={schema_name}',
-            '-lco',
-            'OVERWRITE=YES',
-            '-lco',
-            'GEOMETRY_NAME=shape',
-            '-lco',
-            'PRECISION=YES',
-            '-a_srs',
-            config.UTM,
-        ]
-
-        if schema_name in agol_meta_map and layer in agol_meta_map[schema_name]:
-            new_name, geometry_type = agol_meta_map[schema_name][layer].values()
-
-            if new_name:
-                layer = new_name
-
-            if geometry_type == 'POLYGON':
-                options.append('-nlt')
-                options.append('MULTIPOLYGON')
-            elif geometry_type == 'POLYLINE':
-                options.append('-nlt')
-                options.append('MULTILINESTRING')
-            elif geometry_type == 'STAND ALONE':
-                options.append('-nlt')
-                options.append('NONE')
-            else:
-                options.append('-nlt')
-                options.append(geometry_type)
-
-        options.append('-nln')
-        options.append(f'{layer}')
-
-        pg_options = gdal.VectorTranslateOptions(
-            options=options,
-        )
-
-        LOG.info(f'inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema_name}{Fore.RESET} as {Fore.CYAN}{geometry_type}{Fore.RESET}')
-        LOG.debug(f'with {Fore.CYAN}{sql}{Fore.RESET}')
-
-        if not dry_run:
-            result = gdal.VectorTranslate(cloud_db, internal_sgid, options=pg_options)
-
-            del result
-
-        LOG.info(f'{Fore.GREEN}- done{Fore.RESET}')
-
-    LOG.info(f'{Fore.GREEN} Completed!')
+    LOG.info(f'{Fore.GREEN}Completed!{Fore.RESET}')
 
 
 def _get_table_sets():
@@ -379,6 +381,39 @@ def trim(dry_run):
         execute_sql(sql, config.DBO_CONNECTION)
 
     LOG.info(f'{Fore.GREEN}finished{Fore.RESET}')
+
+
+def update(specific_tables, dry_run):
+    '''update specific tables in the destination
+    specific_tables: a list of tables from the source without the schema
+    dry_run: bool if insertion should actually happen
+    '''
+    internal_sgid = config.get_source_connection()
+
+    if not specific_tables or len(specific_tables) == 0:
+        LOG.info(f'{Fore.YELLOW} No tables to import!{Fore.RESET}')
+
+        return
+
+    layer_schema_map = _get_tables_with_fields(internal_sgid, specific_tables)
+
+    if len(layer_schema_map) == 0:
+        LOG.info(f'{Fore.YELLOW} No matching table found!{Fore.RESET}')
+
+        return
+
+    agol_meta_map = _get_table_meta()
+
+    if len(specific_tables) != len(layer_schema_map):
+        LOG.warn((
+            f'{Back.YELLOW}{Fore.BLACK}input {len(specific_tables)} tables but only {len(layer_schema_map)} found.{Fore.RESET}{Back.RESET} '
+            'Check your spelling'
+        ))
+
+    for schema_name, layer, fields in layer_schema_map:
+        _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
+
+    LOG.info(f'{Fore.GREEN}Completed!{Fore.RESET}')
 
 
 def main():
@@ -431,12 +466,17 @@ def main():
                 sys.exit()
 
     if args['import']:
-        import_data(args['--skip-schema'], args['--skip-if-exists'], args['--dry-run'], args['--missing'])
+        import_data(args['--skip-if-exists'], args['--missing'], args['--dry-run'])
 
         sys.exit()
 
     if args['trim']:
         trim(args['--dry-run'])
+
+        sys.exit()
+
+    if args['update']:
+        update(args['--table'], args['--dry-run'])
 
         sys.exit()
 
