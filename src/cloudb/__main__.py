@@ -192,6 +192,10 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
 
         if qualified_layer:
             name = qualified_layer.GetName()
+            LOG.verbose(f'qualified layer name: {name}')
+
+            if '.' not in name:
+                continue
 
             table_parts = _get_schema_table_name_map(name)
             name = f"{table_parts['schema']}.{table_parts['table_name']}"
