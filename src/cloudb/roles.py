@@ -51,6 +51,8 @@ def create_read_only_user(schemas):
     sql = []
 
     for name in schemas:
+        sql.append(f'ALTER DEFAULT PRIVILEGES IN SCHEMA {name} GRANT SELECT ON TABLES TO read_only')
+        sql.append(f'ALTER DEFAULT PRIVILEGES IN SCHEMA {name} GRANT EXECUTE ON FUNCTIONS TO read_only')
         sql.append(f'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {name} TO read_only')
         sql.append(f'GRANT SELECT ON ALL TABLES IN SCHEMA {name} TO read_only')
         sql.append(f'GRANT USAGE ON SCHEMA {name} TO read_only')
