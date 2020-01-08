@@ -425,7 +425,11 @@ def make_valid(layer):
     '''
     sql = f'UPDATE {layer} SET shape = ST_MakeValid(shape) WHERE ST_IsValid(shape) = false;'
 
-    execute_sql(sql, config.DBO_CONNECTION)
+    try:
+        execute_sql(sql, config.DBO_CONNECTION)
+    except psycopg2.errors.UndefinedColumn:
+        #: table doesn't have shape field
+        pass
 
 def main():
     '''Main entry point for program. Parse arguments and pass to sweeper modules.
