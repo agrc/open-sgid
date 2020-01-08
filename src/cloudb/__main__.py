@@ -315,7 +315,7 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
         del result
 
         LOG.debug(f'- {Fore.CYAN}make valid{Fore.RESET}')
-        make_valid(cloud_db, f'{schema_name}.{layer}')
+        make_valid(f'{schema_name}.{layer}')
 
 
 def import_data(if_not_exists, missing_only, dry_run):
@@ -420,12 +420,12 @@ def update(specific_tables, dry_run):
         _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
 
 
-def make_valid(connection, layer):
+def make_valid(layer):
     '''update invalid shapes in postgres
     '''
     sql = f'UPDATE {layer} SET shape = ST_MakeValid(shape) WHERE ST_IsValid(shape) = false;'
 
-    execute_sql(connection, sql)
+    execute_sql(sql, config.DBO_CONNECTION)
 
 def main():
     '''Main entry point for program. Parse arguments and pass to sweeper modules.
