@@ -315,7 +315,7 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
         del result
 
         LOG.debug(f'- {Fore.CYAN}make valid{Fore.RESET}')
-        execute_sql(cloud_db, f'{schema_name}.{layer}')
+        make_valid(cloud_db, f'{schema_name}.{layer}')
 
 
 def import_data(if_not_exists, missing_only, dry_run):
