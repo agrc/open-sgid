@@ -1,4 +1,10 @@
-# cloudb
+# open sgid
+
+This repository is the wiki and issue tracking location for all things [opensgid.agrc.utah.gov](opensgid.agrc.utah.gov). This is the postGIS Cloud SQL mirror of the AGRC SGID. 
+
+If you are having trouble with the database, with the software you have chosen to use, please search the [issues](issues) to see if this has been identified and solved with a work around.
+
+# cloudb CLI
 
 A cli tool for taking data from MSSQL and pushing it to PostGIS.
 
@@ -53,9 +59,8 @@ cloudb import
 
 - > pro tries to create tables that match the username. this is only important if you are creating data
 - > a standard user should be able to run postgis functions. the only quirk might be needing to grant select on `spatial_ref_sys` and `geometry_columns`
-- i had a hard time getting the geometry type so everything is importing as geometry
-  - `CONVERT_TO_LINEAR` will remove curves. I don't believe we have any.
-  - `PROMOTE_TO_MULTI` for polygons that have multiple parts. This will upgrade them
+- `CONVERT_TO_LINEAR` will remove curves. I don't believe we have any.
+- `PROMOTE_TO_MULTI` for polygons that have multiple parts. This will upgrade them
 
 ## links
 
