@@ -37,6 +37,7 @@
     "psycopg",
     "pyodbc",
     "rolname",
-    "stas"
+    "stas",
+    "strftime"
   ]
 }
