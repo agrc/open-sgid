@@ -125,3 +125,4 @@ dmypy.json
 # terraform
 src/terraform/terraform-sa.json
 src/terraform/.terraform/
+src/.last_checked

@@ -11,13 +11,15 @@ Usage:
   cloudb drop schema [--schemas=<name> --verbosity=<level>]
   cloudb import [--missing --dry-run --verbosity=<level> --skip-if-exists]
   cloudb trim [--dry-run --verbosity=<level>]
-  cloudb update [--table=<tables>... --dry-run --verbosity=<level>]
+  cloudb update [--table=<tables>... --dry-run --verbosity=<level> --from-change-detection]
 
 Arguments:
   name - all or any of the other iso categories
 '''
 
 import sys
+from datetime import datetime
+from pathlib import Path
 from time import perf_counter
 
 import psycopg2
@@ -420,6 +422,60 @@ def update(specific_tables, dry_run):
         _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
 
 
+def read_last_check_date():
+    last_checked = Path('./.last_checked')
+
+    if not last_checked.exists():
+        last_checked.touch()
+
+    last_date_string = ''
+    with open(last_checked, 'r') as log_file:
+        last_date_string = log_file.readline().strip()
+
+    if last_date_string is None or len(last_date_string) < 1:
+        return None
+
+    return last_date_string
+
+
+def update_last_check_date():
+    last_checked = Path('./.last_checked')
+
+    if not last_checked.exists():
+        last_checked.touch()
+
+    with open(last_checked, 'w') as log_file:
+        log_file.write(datetime.today().strftime('%Y-%m-%d'))
+
+
+def get_tables_from_change_detection():
+    last_checked = read_last_check_date()
+
+    if last_checked is None:
+        last_checked = datetime.today()
+    else:
+        last_checked = datetime.strptime(last_checked, '%Y-%m-%d')
+
+    LOG.info(f'Checking for changes since {Fore.MAGENTA}{last_checked}{Fore.RESET}')
+
+    updated_tables = []
+    with pyodbc.connect(config.get_source_connection()[6:]) as connection:
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT [TABLE_NAME] FROM [SGID].[META].[CHANGEDETECTION] WHERE [LAST_MODIFIED] >= ?", last_checked)
+        rows = cursor.fetchall()
+
+        #: table: SGID.ENVIRONMENT.DAQPermitCompApproval
+        for table, in rows:
+            table_parts = _get_schema_table_name_map(table)
+
+            updated_tables.append(table_parts['table_name'])
+
+    update_last_check_date()
+
+    return updated_tables
+
+
 def make_valid(layer):
     '''update invalid shapes in postgres
     '''
@@ -434,6 +490,7 @@ def make_valid(layer):
     except psycopg2.errors.UndefinedColumn:
         #: table doesn't have shape field
         pass
+
 
 def main():
     '''Main entry point for program. Parse arguments and pass to sweeper modules.
@@ -516,7 +573,12 @@ def main():
         sys.exit()
 
     if args['update']:
-        update(args['--table'], args['--dry-run'])
+        tables = args['--table']
+
+        if args['--from-change-detection']:
+            tables = get_tables_from_change_detection()
+
+        update(tables, args['--dry-run'])
 
         LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
 
