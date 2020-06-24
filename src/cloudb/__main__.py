@@ -114,7 +114,12 @@ def _get_tables_with_fields(connection_string, specific_tables):
 
         del qualified_layer
 
-    LOG.info(f'planning to import {Fore.GREEN}{len(layer_schema_map)}{Fore.RESET} tables')
+    schema_map_count = len(layer_schema_map)
+    noun = 'tables'
+    if schema_map_count == 1:
+        noun = 'table'
+
+    LOG.info(f'planning to import {Fore.GREEN}{schema_map_count}{Fore.RESET} {noun}')
     layer_schema_map.sort(key=lambda items: items[0])
 
     connection = None
@@ -336,6 +341,14 @@ def import_data(if_not_exists, missing_only, dry_run):
 
         table_count = len(tables)
 
+        verb = 'are'
+        noun = 'tables'
+        if table_count == 1:
+            verb = 'is'
+            noun = 'table'
+
+        LOG.info(f'there {verb} {Fore.CYAN}{table_count}{Fore.RESET} {noun} in the source not in the destination')
+        LOG.verbose(','.join(tables))
 
         if table_count == 0:
             return
@@ -361,7 +374,6 @@ def import_data(if_not_exists, missing_only, dry_run):
             tables = origin_table_name
 
     layer_schema_map = _get_tables_with_fields(internal_sgid, tables)
-    agol_meta_map = _get_table_meta()
 
     for schema_name, layer, fields in layer_schema_map:
         if if_not_exists and _check_if_exists(cloud_db, schema_name, layer, agol_meta_map):
@@ -398,10 +410,18 @@ def trim(dry_run):
 
     source, destination = _get_table_sets()
     items_to_trim = source - destination
+    items_to_trim_count = len(items_to_trim)
 
-    LOG.info(f'there are {Fore.CYAN}{len(items_to_trim)}{Fore.RESET} tables in the destination not in the source')
+    verb = 'are'
+    noun = 'tables'
+    if items_to_trim_count == 1:
+        verb = 'is'
+        noun = 'table'
 
-    if len(items_to_trim) == 0:
+    LOG.info(f'there {verb} {Fore.CYAN}{items_to_trim_count}{Fore.RESET} {noun} in the destination not in the source')
+    LOG.verbose(','.join(items_to_trim))
+
+    if items_to_trim_count == 0:
         return
 
     sql = f'DROP TABLE {",".join(items_to_trim)}'
