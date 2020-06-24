@@ -90,7 +90,7 @@ def _get_tables_with_fields(connection_string, specific_tables):
 
         LOG.debug(f'- {Fore.CYAN}{schema_name}.{layer}{Fore.RESET}')
 
-        if schema_name in config.EXCLUDE_SCHEMAS or filter_tables and layer not in specific_tables:
+        if schema_name in config.EXCLUDE_SCHEMAS or filter_tables and f'{schema_name}.{layer}' not in specific_tables:
             LOG.verbose(f' {Fore.RED}- skipping:{Fore.RESET} {schema_name}')
 
             continue
@@ -324,6 +324,7 @@ def import_data(if_not_exists, missing_only, dry_run):
     '''imports data from sql to postgis
     if_not_exists: create new tables if the destination does not have it
     dry_run: do not modify the destination
+    missing_only: only import missing tables
     '''
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
@@ -333,10 +334,31 @@ def import_data(if_not_exists, missing_only, dry_run):
         source, destination = _get_table_sets()
         tables = destination - source
 
-        LOG.info(f'there are {Fore.CYAN}{len(tables)}{Fore.RESET} tables in the source not in the destination')
+        table_count = len(tables)
 
-        if len(tables) == 0:
+
+        if table_count == 0:
             return
+
+    agol_meta_map = _get_table_meta()
+
+    if missing_only:
+        origin_table_name = []
+
+        #: reverse lookup the table names
+        for table in tables:
+            schema_name, table_name = table.split('.')
+            schema_name = schema_name.lower()
+            table_name = table_name.lower()
+
+            schema_items = agol_meta_map[schema_name]
+            for origin_name in schema_items:
+                if schema_items[origin_name]['title'] == table_name:
+                    origin_table_name.append(f'{schema_name}.{origin_name}')
+                    break
+
+        if len(origin_table_name) > 0:
+            tables = origin_table_name
 
     layer_schema_map = _get_tables_with_fields(internal_sgid, tables)
     agol_meta_map = _get_table_meta()
