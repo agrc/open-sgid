@@ -4,6 +4,7 @@
 logger.py
 A module that lets you filter log statements
 '''
+import datetime
 
 
 class Logger():
@@ -35,4 +36,4 @@ class Logger():
 
     def _print(self, value, verbosity):
         if self.severity.index(verbosity) >= self.severity.index(self.verbosity):
-            print(value)
+            print(f'[{datetime.datetime.now().strftime("%m-%d-%Y %H:%M:%S")}] {value}')
