@@ -64,7 +64,7 @@ def enable_postgis():
 def _get_tables_with_fields(connection_string, specific_tables):
     '''creates a list of tables with fields from the connection string
     connection_string: string to connect to db
-    specific_tables: array of tables to get
+    specific_tables: array of tables to get in schema.table format
     returns: array of tuples with 0: schema, 1: table name: 2: array of field names
     '''
     layer_schema_map = []
