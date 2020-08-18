@@ -15,6 +15,7 @@ Usage:
 
 Arguments:
   name - all or any of the other iso categories
+  level - VERBOSE DEBUG INFO WARNING FATAL
 '''
 
 import sys
