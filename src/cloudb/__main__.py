@@ -197,6 +197,7 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
 
     for table_index in range(table_count):
         qualified_layer = connection.GetLayerByIndex(table_index)
+        table = None
 
         if qualified_layer:
             name = qualified_layer.GetName()
@@ -217,6 +218,9 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
 
                 if schema_name in name_map and pg_title in name_map[schema_name]:
                     table, _ = name_map[schema_name][pg_title].values()
+
+                    continue
+
                 name = f"{schema_name}.{table}"
 
             LOG.verbose(f'found layer: {name}')
@@ -306,6 +310,10 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
         else:
             options.append('-nlt')
             options.append(geometry_type)
+    else:
+        LOG.info(f'- skipping {Fore.MAGENTA}{layer}{Fore.RESET} since it is no longer in the meta table{Fore.RESET}')
+
+        return
 
     options.append('-nln')
     options.append(f'{layer}')
@@ -512,7 +520,9 @@ def get_tables_from_change_detection():
         for table, in rows:
             table_parts = _get_schema_table_name_map(table)
 
-            updated_tables.append(table_parts['table_name'])
+            table_schema = table_parts['schema']
+            table_name = table_parts['table_name']
+            updated_tables.append(f'{table_schema}.{table_name}')
 
     update_last_check_date()
 
