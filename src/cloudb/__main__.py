@@ -218,7 +218,7 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
 
                 if schema_name in name_map and pg_title in name_map[schema_name]:
                     table, _ = name_map[schema_name][pg_title].values()
-
+                else:
                     continue
 
                 name = f"{schema_name}.{table}"
