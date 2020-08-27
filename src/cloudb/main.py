@@ -4,7 +4,7 @@
 cloudb
 
 Usage:
-  cloudb enable postgis [--verbosity=<level>]
+  cloudb enable extensions [--verbosity=<level>]
   cloudb create schema [--schemas=<name> --verbosity=<level>]
   cloudb create admin-user [--verbosity=<level>]
   cloudb create read-only-user [--verbosity=<level>]
@@ -52,13 +52,13 @@ def execute_sql(sql, connection):
         conn.commit()
 
 
-def enable_postgis():
-    '''enables the postgis extension
+def enable_extensions():
+    '''enable the database extension
     owner: string db owner
     '''
-    LOG.info('enabling postgis')
+    LOG.info('enabling extensions')
 
-    execute_sql('CREATE EXTENSION postgis;', config.DBO_CONNECTION)
+    execute_sql('CREATE EXTENSION postgis;CREATE EXTENSION pg_stat_statements;', config.DBO_CONNECTION)
 
 
 def _get_tables_with_fields(connection_string, specific_tables):
@@ -557,7 +557,7 @@ def main():
     LOG.debug(f'{Back.WHITE}{Fore.BLACK}{args}{Back.RESET}{Fore.RESET}')
 
     if args['enable']:
-        enable_postgis()
+        enable_extensions()
 
         LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
 
