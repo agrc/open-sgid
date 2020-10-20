@@ -8,6 +8,7 @@ Usage:
   cloudb create schema [--schemas=<name> --verbosity=<level>]
   cloudb create admin-user [--verbosity=<level>]
   cloudb create read-only-user [--verbosity=<level>]
+  cloudb create indexes [--verbosity=<level>]
   cloudb drop schema [--schemas=<name> --verbosity=<level>]
   cloudb import [--missing --dry-run --verbosity=<level> --skip-if-exists]
   cloudb trim [--dry-run --verbosity=<level>]
@@ -30,26 +31,13 @@ from osgeo import gdal, ogr
 
 import pyodbc
 
-from . import CONNECTION_TABLE_CACHE, LOG, config, roles, schema, utils
+from . import CONNECTION_TABLE_CACHE, LOG, execute_sql, config, roles, schema, utils
+from .index import INDEXES
 
 gdal.SetConfigOption('MSSQLSPATIAL_LIST_ALL_TABLES', 'YES')
 gdal.SetConfigOption('PG_LIST_ALL_TABLES', 'YES')
 gdal.SetConfigOption('PG_USE_POSTGIS', 'YES')
 gdal.SetConfigOption('PG_USE_COPY', 'YES')
-
-
-def execute_sql(sql, connection):
-    '''executes sql on the information
-    sql: string T-SQL
-    connection: dict with connection information
-    '''
-    LOG.debug(f'  executing {sql}')
-
-    with psycopg2.connect(**connection) as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(sql)
-
-        conn.commit()
 
 
 def enable_extensions():
@@ -331,7 +319,11 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
         del result
 
         LOG.debug(f'- {Fore.CYAN}make valid{Fore.RESET}')
-        make_valid(f'{schema_name}.{layer}')
+
+        qualified_layer = f'{schema_name}.{layer}'
+
+        make_valid(qualified_layer)
+        create_index(qualified_layer)
 
 
 def import_data(if_not_exists, missing_only, dry_run):
@@ -544,6 +536,20 @@ def make_valid(layer):
         #: table doesn't have shape field
         pass
 
+def create_index(layer):
+    """
+    creates an index if availabe in the index map
+    """
+    if layer.lower() not in INDEXES:
+        return
+
+    LOG.debug(f'- {Fore.CYAN}adding index{Fore.RESET}')
+    for sql in INDEXES[layer]:
+        try:
+            execute_sql(sql, config.DBO_CONNECTION)
+        except Exception as ex:
+            LOG.warn(f'- {Fore.RED}failed running: {Fore.YELLOW}{sql}{Fore.CYAN}{ex}{Fore.RESET}')
+
 
 def main():
     '''Main entry point for program. Parse arguments and pass to sweeper modules.
@@ -590,6 +596,10 @@ def main():
             LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
 
             sys.exit()
+
+        if args['indexes']:
+            for key, _ in INDEXES.items():
+                create_index(key)
 
     if args['drop']:
         if args['schema']:

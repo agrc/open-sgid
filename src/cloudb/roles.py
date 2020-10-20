@@ -10,7 +10,7 @@ from textwrap import dedent
 import psycopg2
 from colorama import Fore
 
-from .__main__ import LOG, config, execute_sql
+from . import LOG, config, execute_sql
 
 
 def create_read_only_user(schemas):
