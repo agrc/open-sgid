@@ -11,7 +11,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='cloudb',
-    version='1.0.0',
+    version='1.1.0',
     license='MIT',
     description='A cli to synchronize the internal sgid with the open sgid',
     author='AGRC',

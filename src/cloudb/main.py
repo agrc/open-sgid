@@ -13,10 +13,6 @@ Usage:
   cloudb import [--missing --dry-run --verbosity=<level> --skip-if-exists]
   cloudb trim [--dry-run --verbosity=<level>]
   cloudb update [--table=<tables>... --dry-run --verbosity=<level> --from-change-detection]
-
-Arguments:
-  name - all or any of the other iso categories
-  level - VERBOSE DEBUG INFO WARNING FATAL
 '''
 
 import sys
@@ -555,7 +551,7 @@ def main():
     '''Main entry point for program. Parse arguments and pass to sweeper modules.
     '''
     init()
-    args = docopt(__doc__, version='1.0.0')
+    args = docopt(__doc__, version='1.1.0')
 
     start_seconds = perf_counter()
 
