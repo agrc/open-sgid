@@ -6,6 +6,8 @@ A cli tool for taking data from MSSQL and pushing it to PostGIS.
 
 ### python
 
+1. create a python 3 virtual environment
+   - `python -m venv .env`
 1. pip install the module
    - `pip install .`
    - for development `pip install . -e ."[tests]"
@@ -25,9 +27,8 @@ A cli tool for taking data from MSSQL and pushing it to PostGIS.
 ### python again
 
 1. fill out the `.env` variables
-1. navigate to the `src` directory of this project
 1. execute cli commands
-   - `python -m cloudb ...`
+   - `cloudb`
 
 ## usage
 
