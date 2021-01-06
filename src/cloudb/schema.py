@@ -67,7 +67,11 @@ WHERE
             for column, data_type in result:
                 statements.append(f'ALTER COLUMN {column} TYPE {data_type} USING {column}::{data_type}')
 
-    import pdb; pdb.set_trace()
+    if len(statements) < 1:
+        LOG.verbose(f'skipping {Fore.RED}{pg_table}{Fore.RESET}')
+
+        return
+
     with psycopg2.connect(**config.DBO_CONNECTION) as conn:
         with conn.cursor() as cursor:
             sql = f'ALTER TABLE {pg_table} {", ".join(statements)};'
