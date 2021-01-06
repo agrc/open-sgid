@@ -13,6 +13,7 @@ Usage:
   cloudb import [--missing --dry-run --verbosity=<level> --skip-if-exists]
   cloudb trim [--dry-run --verbosity=<level>]
   cloudb update [--table=<tables>... --dry-run --verbosity=<level> --from-change-detection]
+  cloudb update schema [--table=<tables>... --dry-run --verbosity=<level>]
 '''
 
 import sys
@@ -248,6 +249,8 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
+    internal_name = f'{schema_name}.{layer}'
+
     sql = f'SELECT objectid FROM "{schema_name}.{layer}"'
 
     if len(fields) > 0:
@@ -319,6 +322,7 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
         qualified_layer = f'{schema_name}.{layer}'
 
         make_valid(qualified_layer)
+        schema.update_schema_for(internal_name, qualified_layer)
         create_index(qualified_layer)
 
 
@@ -532,6 +536,7 @@ def make_valid(layer):
         #: table doesn't have shape field
         pass
 
+
 def create_index(layer):
     """
     creates an index if availabe in the index map
@@ -632,6 +637,26 @@ def main():
         sys.exit()
 
     if args['update']:
+        if args['schema']:
+            tables = args['--table']
+
+            if len(tables) == 0:
+                schema.update_schemas(_get_table_meta(), args['--dry-run'])
+            else:
+                agol_meta_map = _get_table_meta()
+
+                for sgid_table in tables:
+                    schema_name, table_name = sgid_table.lower().split('.')
+                    pg_table = f'{schema_name}.{agol_meta_map[schema_name][table_name]["title"]}'
+
+                    schema.update_schema_for(sgid_table, pg_table, args['--dry-run'])
+
+            LOG.info(
+                f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+            )
+
+            sys.exit()
+
         tables = args['--table']
 
         if args['--from-change-detection']:
