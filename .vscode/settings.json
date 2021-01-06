@@ -11,6 +11,7 @@
   ],
   "cSpell.words": [
     "agol",
+    "cadastre",
     "cloudb",
     "colorama",
     "conda",
@@ -36,6 +37,7 @@
     "psycopg",
     "pyodbc",
     "rolname",
+    "sgid",
     "stas",
     "strftime"
   ]
