@@ -148,9 +148,7 @@ def _get_table_meta():
     with pyodbc.connect(config.get_source_connection()[6:]) as connection:
         cursor = connection.cursor()
 
-        cursor.execute(
-            "SELECT [TABLENAME],[AGOL_PUBLISHED_NAME],[GEOMETRY_TYPE] FROM [SGID].[META].[AGOLITEMS] WHERE AGOL_ITEM_ID != 'exclude'"
-        )
+        cursor.execute("SELECT [TABLENAME],[AGOL_PUBLISHED_NAME],[GEOMETRY_TYPE] FROM [SGID].[META].[AGOLITEMS]")
         rows = cursor.fetchall()
 
         #: table: SGID.ENVIRONMENT.DAQPermitCompApproval
