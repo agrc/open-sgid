@@ -305,7 +305,12 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
     options.append('-nln')
     options.append(f'{layer}')
 
-    pg_options = gdal.VectorTranslateOptions(options=options)
+    pg_options = None
+    try:
+        pg_options = gdal.VectorTranslateOptions(options=options)
+    except Exception:
+        LOG.fatal(f'- {Fore.RED}invalid options{Fore.RESET} for {Fore.BLUE}{layer}{Fore.RESET}')
+        return
 
     LOG.info(f'- inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema_name}{Fore.RESET} as {Fore.CYAN}{geometry_type}{Fore.RESET}')
     LOG.debug(f'with {Fore.CYAN}{sql}{Fore.RESET}')
@@ -425,10 +430,17 @@ def trim(dry_run):
     if items_to_trim_count == 0:
         return
 
-    sql = f'DROP TABLE {",".join(items_to_trim)}'
-    LOG.info(f'dropping {items_to_trim}')
+    clean_items = []
+    for item in items_to_trim:
+        schema, table = item.split('.')
+        clean_items.append(f'{schema}."{table}"')
+
+    sql = f'DROP TABLE {",".join(clean_items)}'
+    LOG.info(f'dropping {clean_items}')
 
     if not dry_run:
+        import pdb
+        pdb.set_trace()
         execute_sql(sql, config.DBO_CONNECTION)
 
     LOG.info(f'{Fore.GREEN}finished{Fore.RESET}')
