@@ -439,8 +439,6 @@ def trim(dry_run):
     LOG.info(f'dropping {clean_items}')
 
     if not dry_run:
-        import pdb
-        pdb.set_trace()
         execute_sql(sql, config.DBO_CONNECTION)
 
     LOG.info(f'{Fore.GREEN}finished{Fore.RESET}')
