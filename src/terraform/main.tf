@@ -69,6 +69,6 @@ resource "google_sql_user" "dbo" {
   name       = "postgres"
   project    = var.project_id
   instance   = google_sql_database_instance.public_sgid.name
-  password   = random_id.dbo_password.hex
+  password   = sensitive(random_id.dbo_password.hex)
   depends_on = [google_sql_database_instance.public_sgid, random_id.dbo_password]
 }
