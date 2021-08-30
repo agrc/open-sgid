@@ -17,7 +17,7 @@ SCHEMAS = [
 ]
 
 EXCLUDE_SCHEMAS = ['sde', 'meta']
-EXCLUDE_FIELDS = ['objectid', 'fid', 'globalid', 'gdb_geomattr_data']
+EXCLUDE_FIELDS = ['objectid', 'fid', 'gdb_geomattr_data']
 
 DB = 'opensgid'
 
