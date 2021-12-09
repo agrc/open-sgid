@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # * coding: utf8 *
-'''
+"""
 cloudb
 
 Usage:
@@ -14,7 +14,7 @@ Usage:
   cloudb trim [--dry-run --verbosity=<level>]
   cloudb update [--table=<tables>... --dry-run --verbosity=<level> --from-change-detection]
   cloudb update-schema [--table=<tables>... --dry-run --verbosity=<level>]
-'''
+"""
 
 import sys
 from datetime import datetime
@@ -22,13 +22,12 @@ from pathlib import Path
 from time import perf_counter
 
 import psycopg2
+import pyodbc
 from colorama import Back, Fore, init
 from docopt import docopt
 from osgeo import gdal, ogr
 
-import pyodbc
-
-from . import CONNECTION_TABLE_CACHE, LOG, execute_sql, config, roles, schema, utils
+from . import CONNECTION_TABLE_CACHE, LOG, config, execute_sql, roles, schema, utils
 from .index import INDEXES
 
 gdal.SetConfigOption('MSSQLSPATIAL_LIST_ALL_TABLES', 'YES')
@@ -38,20 +37,20 @@ gdal.SetConfigOption('PG_USE_COPY', 'YES')
 
 
 def enable_extensions():
-    '''enable the database extension
+    """enable the database extension
     owner: string db owner
-    '''
+    """
     LOG.info('enabling extensions')
 
     execute_sql('CREATE EXTENSION postgis;CREATE EXTENSION pg_stat_statements;', config.DBO_CONNECTION)
 
 
 def _get_tables_with_fields(connection_string, specific_tables):
-    '''creates a list of tables with fields from the connection string
+    """creates a list of tables with fields from the connection string
     connection_string: string to connect to db
     specific_tables: array of tables to get in schema.table format
     returns: array of tuples with 0: schema, 1: table name: 2: array of field names
-    '''
+    """
     layer_schema_map = []
     filter_tables = False
 
@@ -114,8 +113,8 @@ def _get_tables_with_fields(connection_string, specific_tables):
 
 
 def _get_schema_table_name_map(table_name):
-    '''a method to split a qualified table into it's parts
-    '''
+    """a method to split a qualified table into it's parts
+    """
     parts = table_name.split('.')
 
     schema_index = 1
@@ -141,14 +140,14 @@ def _format_title_for_pg(title):
 
 
 def _get_table_meta():
-    '''gets the meta data about fields from meta.agolitems
-    '''
+    """gets the meta data about fields from meta.agolitems
+    """
     mapping = {}
 
     with pyodbc.connect(config.get_source_connection()[6:]) as connection:
         cursor = connection.cursor()
 
-        cursor.execute("SELECT [TABLENAME],[AGOL_PUBLISHED_NAME],[GEOMETRY_TYPE] FROM [SGID].[META].[AGOLITEMS]")
+        cursor.execute('SELECT [TABLENAME],[AGOL_PUBLISHED_NAME],[GEOMETRY_TYPE] FROM [SGID].[META].[AGOLITEMS]')
         rows = cursor.fetchall()
 
         #: table: SGID.ENVIRONMENT.DAQPermitCompApproval
@@ -165,10 +164,10 @@ def _get_table_meta():
 
 
 def _populate_table_cache(connection_string, pgify=False, name_map=None):
-    '''adds all the table from a connection string to a dictionary for caching purposes
+    """adds all the table from a connection string to a dictionary for caching purposes
     pgify: lowercases and adds underscores
     name_map: is a dictionary to replace names from the meta table
-    '''
+    """
     skip_schema = ['meta', 'sde']
     LOG.verbose('connecting to database')
     #: gdal.open gave a 0 table count
@@ -206,7 +205,7 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
                 else:
                     continue
 
-                name = f"{schema_name}.{table}"
+                name = f'{schema_name}.{table}'
 
             LOG.verbose(f'found layer: {name}')
 
@@ -217,12 +216,12 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
 
 
 def _check_if_exists(connection_string, schema_name, table, agol_meta_map):
-    '''returns true or false if a table exists in the connections_string db
+    """returns true or false if a table exists in the connections_string db
     connection_string: string of db to check
     schema_name: string schema name
     table: string table name
     returns: bool
-    '''
+    """
     LOG.debug('checking cache')
 
     if schema_name in agol_meta_map and table in agol_meta_map[schema_name]:
@@ -244,8 +243,8 @@ def _check_if_exists(connection_string, schema_name, table, agol_meta_map):
 
 
 def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
-    '''the insert logic for writing to the destination
-    '''
+    """the insert logic for writing to the destination
+    """
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
@@ -256,7 +255,7 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
     if len(fields) > 0:
         #: escape reserved words?
         fields = [f'"{field}"' for field in fields]
-        sql = f"SELECT {','.join(fields)} FROM \"{schema_name}.{layer}\""
+        sql = f'SELECT {",".join(fields)} FROM "{schema_name}.{layer}"'
 
     options = [
         '-f',
@@ -312,13 +311,20 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
         LOG.fatal(f'- {Fore.RED}invalid options{Fore.RESET} for {Fore.BLUE}{layer}{Fore.RESET}')
         return
 
-    LOG.info(f'- inserting {Fore.MAGENTA}{layer}{Fore.RESET} into {Fore.BLUE}{schema_name}{Fore.RESET} as {Fore.CYAN}{geometry_type}{Fore.RESET}')
+    LOG.info((
+        f'- inserting {Fore.MAGENTA}{layer}{Fore.RESET} '
+        f'into {Fore.BLUE}{schema_name}{Fore.RESET} '
+        f'as {Fore.CYAN}{geometry_type}{Fore.RESET}'
+    ))
     LOG.debug(f'with {Fore.CYAN}{sql}{Fore.RESET}')
 
     if not dry_run:
         start_seconds = perf_counter()
         result = gdal.VectorTranslate(cloud_db, internal_sgid, options=pg_options)
-        LOG.debug(f'- {Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+        LOG.debug((
+            f'- {Fore.GREEN}completed{Fore.RESET} '
+            f'in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+        ))
 
         del result
 
@@ -332,11 +338,11 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
 
 
 def import_data(if_not_exists, missing_only, dry_run):
-    '''imports data from sql to postgis
+    """imports data from sql to postgis
     if_not_exists: create new tables if the destination does not have it
     dry_run: do not modify the destination
     missing_only: only import missing tables
-    '''
+    """
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
@@ -391,8 +397,9 @@ def import_data(if_not_exists, missing_only, dry_run):
 
 
 def _get_table_sets():
-    '''gets a set of each schema.tablename from the source and destination database to help figure out what is different between them
-    '''
+    """gets a set of each schema.tablename from the source and destination database to
+    help figure out what is different between them
+    """
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
@@ -409,10 +416,10 @@ def _get_table_sets():
 
 
 def trim(dry_run):
-    '''get source tables with updated names
+    """get source tables with updated names
     get destination tables with original names
     drop the tables in the destination found in the difference between the two sets
-    '''
+    """
 
     source, destination = _get_table_sets()
     items_to_trim = source - destination
@@ -432,8 +439,8 @@ def trim(dry_run):
 
     clean_items = []
     for item in items_to_trim:
-        schema, table = item.split('.')
-        clean_items.append(f'{schema}."{table}"')
+        schema_part, table = item.split('.')
+        clean_items.append(f'{schema_part}."{table}"')
 
     sql = f'DROP TABLE {",".join(clean_items)}'
     LOG.info(f'dropping {clean_items}')
@@ -445,10 +452,10 @@ def trim(dry_run):
 
 
 def update(specific_tables, dry_run):
-    '''update specific tables in the destination
+    """update specific tables in the destination
     specific_tables: a list of tables from the source without the schema
     dry_run: bool if insertion should actually happen
-    '''
+    """
     internal_sgid = config.get_source_connection()
 
     if not specific_tables or len(specific_tables) == 0:
@@ -467,7 +474,8 @@ def update(specific_tables, dry_run):
 
     if len(specific_tables) != len(layer_schema_map):
         LOG.warn((
-            f'{Back.YELLOW}{Fore.BLACK}input {len(specific_tables)} tables but only {len(layer_schema_map)} found.{Fore.RESET}{Back.RESET} '
+            f'{Back.YELLOW}{Fore.BLACK}input {len(specific_tables)} tables '
+            f'but only {len(layer_schema_map)} found.{Fore.RESET}{Back.RESET} '
             'check your spelling'
         ))
 
@@ -476,13 +484,15 @@ def update(specific_tables, dry_run):
 
 
 def read_last_check_date():
+    """reads the last check date from the config file
+    """
     last_checked = Path('./.last_checked')
 
     if not last_checked.exists():
         last_checked.touch()
 
     last_date_string = ''
-    with open(last_checked, 'r') as log_file:
+    with open(last_checked, 'r', encoding='utf8') as log_file:
         last_date_string = log_file.readline().strip()
 
     if last_date_string is None or len(last_date_string) < 1:
@@ -492,16 +502,20 @@ def read_last_check_date():
 
 
 def update_last_check_date():
+    """updates the last check date in the config file
+    """
     last_checked = Path('./.last_checked')
 
     if not last_checked.exists():
         last_checked.touch()
 
-    with open(last_checked, 'w') as log_file:
+    with open(last_checked, 'w', encoding='utf8') as log_file:
         log_file.write(datetime.today().strftime('%Y-%m-%d'))
 
 
 def get_tables_from_change_detection():
+    """get changes from cambiador managed table
+    """
     last_checked = read_last_check_date()
 
     if last_checked is None:
@@ -515,7 +529,9 @@ def get_tables_from_change_detection():
     with pyodbc.connect(config.get_source_connection()[6:]) as connection:
         cursor = connection.cursor()
 
-        cursor.execute("SELECT [TABLE_NAME] FROM [SGID].[META].[CHANGEDETECTION] WHERE [LAST_MODIFIED] >= ?", last_checked)
+        cursor.execute(
+            "SELECT [TABLE_NAME] FROM [SGID].[META].[CHANGEDETECTION] WHERE [LAST_MODIFIED] >= ?", last_checked
+        )
         rows = cursor.fetchall()
 
         #: table: SGID.ENVIRONMENT.DAQPermitCompApproval
@@ -532,8 +548,8 @@ def get_tables_from_change_detection():
 
 
 def make_valid(layer):
-    '''update invalid shapes in postgres
-    '''
+    """update invalid shapes in postgres
+    """
     sql = f'UPDATE {layer} SET shape = ST_MakeValid(shape) WHERE ST_IsValid(shape) = false;'
 
     unfixable_layers = ['utilities.broadband_service']
@@ -548,8 +564,7 @@ def make_valid(layer):
 
 
 def create_index(layer):
-    """
-    creates an index if availabe in the index map
+    """ creates an index if availabe in the index map
     """
     if layer.lower() not in INDEXES:
         return
@@ -563,8 +578,8 @@ def create_index(layer):
 
 
 def main():
-    '''Main entry point for program. Parse arguments and pass to sweeper modules.
-    '''
+    """Main entry point for program. Parse arguments and pass to sweeper modules.
+    """
     init()
     args = docopt(__doc__, version='1.1.0')
 
@@ -576,7 +591,10 @@ def main():
     if args['enable']:
         enable_extensions()
 
-        LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+        LOG.info((
+            f'{Fore.GREEN}completed{Fore.RESET} in '
+            f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+        ))
 
         sys.exit()
 
@@ -597,14 +615,20 @@ def main():
         if args['admin-user']:
             roles.create_admin_user(config.ADMIN)
 
-            LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+            LOG.info((
+                f'{Fore.GREEN}completed{Fore.RESET} in '
+                f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+            ))
 
             sys.exit()
 
         if args['read-only-user']:
             roles.create_read_only_user(config.SCHEMAS)
 
-            LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+            LOG.info((
+                f'{Fore.GREEN}completed{Fore.RESET} in '
+                f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+            ))
 
             sys.exit()
 
@@ -619,7 +643,10 @@ def main():
             if name is None or name == 'all':
                 schema.drop_schemas(config.SCHEMAS)
 
-                LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+                LOG.info((
+                    f'{Fore.GREEN}completed{Fore.RESET} in '
+                    f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+                ))
 
                 sys.exit()
 
@@ -628,21 +655,30 @@ def main():
             if name in config.SCHEMAS:
                 schema.drop_schemas([name])
 
-                LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+                LOG.info((
+                    f'{Fore.GREEN}completed{Fore.RESET} in '
+                    f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+                ))
 
                 sys.exit()
 
     if args['import']:
         import_data(args['--skip-if-exists'], args['--missing'], args['--dry-run'])
 
-        LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+        LOG.info((
+            f'{Fore.GREEN}completed{Fore.RESET} in '
+            f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+        ))
 
         sys.exit()
 
     if args['trim']:
         trim(args['--dry-run'])
 
-        LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+        LOG.info((
+            f'{Fore.GREEN}completed{Fore.RESET} in '
+            f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+        ))
 
         sys.exit()
 
@@ -654,7 +690,10 @@ def main():
 
         update(tables, args['--dry-run'])
 
-        LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+        LOG.info((
+            f'{Fore.GREEN}completed{Fore.RESET} in '
+            f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+        ))
 
         sys.exit()
 
@@ -672,13 +711,17 @@ def main():
 
                 schema.update_schema_for(sgid_table, pg_table, args['--dry-run'])
 
-        LOG.info(
-            f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
-        )
+        LOG.info((
+            f'{Fore.GREEN}completed{Fore.RESET} in '
+            f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+        ))
 
         sys.exit()
 
-    LOG.info(f'{Fore.GREEN}completed{Fore.RESET} in {Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}')
+    LOG.info((
+        f'{Fore.GREEN}completed{Fore.RESET} in '
+        f'{Fore.CYAN}{utils.format_time(perf_counter() - start_seconds)}{Fore.RESET}'
+    ))
 
     sys.exit()
 

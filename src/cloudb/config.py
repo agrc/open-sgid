@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # * coding: utf8 *
-'''
+"""
 config.py
 A module that holds configuration items
-'''
+"""
 import os
 from textwrap import dedent
 
@@ -12,8 +12,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SCHEMAS = [
-    'bioscience', 'boundaries', 'cadastre', 'climate', 'demographic', 'economy', 'elevation', 'energy', 'environment', 'farming', 'geoscience', 'health',
-    'history', 'indices', 'location', 'planning', 'political', 'raster', 'recreation', 'society', 'transportation', 'utilities', 'water'
+    'bioscience', 'boundaries', 'cadastre', 'climate', 'demographic', 'economy', 'elevation', 'energy', 'environment',
+    'farming', 'geoscience', 'health', 'history', 'indices', 'location', 'planning', 'political', 'raster',
+    'recreation', 'society', 'transportation', 'utilities', 'water'
 ]
 
 EXCLUDE_SCHEMAS = ['sde', 'meta']
@@ -81,10 +82,19 @@ UTM = dedent(
 
 
 def format_ogr_connection(connection):
-    return f"PG:host={connection['host']} port=5432 user='{connection['user']}' password='{connection['password']}' dbname='{connection['database']}'"
+    """a method to format a connection string for ogr usage
+    """
+    return (
+        f"PG:host={connection['host']} "
+        f"port=5432 user='{connection['user']}' "
+        f"password='{connection['password']}' "
+        f"dbname='{connection['database']}'"
+    )
 
 
 def get_source_connection():
+    """a method to format the sql server source data connection string
+    """
     return (
         'MSSQL:driver=ODBC Driver 17 for SQL Server;'
         f"server={SRC_CONNECTION['host']};"
