@@ -36,4 +36,4 @@ INDEXES = {
 }
 
 for county in PARCEL_LAYERS:
-    INDEXES[f'cadastre.{county}'] = [DEFAULT.format('parcel_id', 'cadastre', county)]
+    INDEXES[f'cadastre.{county}_county_parcels'] = [DEFAULT.format('parcel_id', 'cadastre', f'{county}_county_parcels')]
