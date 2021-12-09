@@ -1,28 +1,43 @@
 {
-  "python.linting.enabled": true,
-  "python.linting.pylintEnabled": true,
-  "python.linting.flake8Enabled": false,
-  "python.linting.pycodestyleEnabled": false,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
+  },
+  "editor.formatOnSave": true,
+  "editor.rulers": [
+    120
+  ],
+  "files.insertFinalNewline": true,
   "python.formatting.provider": "yapf",
-  "python.formatting.yapfPath": "yapf",
   "python.formatting.yapfArgs": [
     "--style",
     "${workspaceRoot}/setup.cfg"
   ],
+  "python.formatting.yapfPath": "yapf",
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": false,
+  "python.linting.pycodestyleEnabled": false,
+  "python.linting.pylintEnabled": true,
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
   "cSpell.words": [
     "agol",
+    "agrc",
     "cadastre",
     "cloudb",
     "colorama",
     "conda",
+    "daggett",
     "dbname",
     "defn",
     "docopt",
     "dotenv",
+    "duchesne",
     "gdal",
     "geogcs",
     "getenv",
     "globalid",
+    "gnis",
+    "juab",
     "mssql",
     "mssqlspatial",
     "noinherit",
@@ -31,14 +46,20 @@
     "osgeo",
     "pgadmin",
     "pgify",
+    "piute",
     "postgis",
     "postgresql",
     "primem",
     "psycopg",
     "pyodbc",
     "rolname",
+    "sevier",
     "sgid",
     "stas",
-    "strftime"
+    "strftime",
+    "tooele",
+    "UGRC",
+    "uintah",
+    "yapf"
   ]
 }
