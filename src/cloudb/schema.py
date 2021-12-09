@@ -1,20 +1,21 @@
 #!/usr/bin/env python
 # * coding: utf8 *
-'''
+"""
 schema.py
 A module that modifies schemas
-'''
+"""
 
-from colorama import Back, Fore
 import psycopg2
 import pyodbc
-from . import config, LOG
+from colorama import Fore
+
+from . import LOG, config
 
 
 def drop_schemas(schemas):
-    '''drops the schemas and all tables within
+    """drops the schemas and all tables within
     schemas: array of schemas to create
-    '''
+    """
     with psycopg2.connect(**config.DBO_CONNECTION) as conn:
         sql = []
 
@@ -29,9 +30,9 @@ def drop_schemas(schemas):
 
 
 def create_schemas(schemas):
-    '''creates the schemas to match our ISO categories
+    """creates the schemas to match our ISO categories
     schemas: array of schemas to create
-    '''
+    """
     with psycopg2.connect(**config.DBO_CONNECTION) as conn:
         sql = []
 
@@ -48,9 +49,11 @@ def create_schemas(schemas):
 
 
 def update_schema_for(sql_table, pg_table, dry_run=False):
+    """updates the schema for a specific table
+    """
     statements = []
     with pyodbc.connect(config.get_source_connection()[6:]) as conn:
-        sql = """SELECT
+        sql = '''SELECT
     LOWER(column_name) as column_name, data_type
 FROM
     INFORMATION_SCHEMA.COLUMNS
@@ -58,7 +61,7 @@ WHERE
     LOWER(table_name) = ?
     AND LOWER(table_schema) = ?
     AND data_type in ('smallint', 'int', 'bigint')
-    AND column_name not in ('OBJECTID', 'OBJECTID_1');"""
+    AND column_name not in ('OBJECTID', 'OBJECTID_1');'''
 
         with conn.cursor() as cursor:
             schema_name, table_name = sql_table.split('.')
@@ -84,11 +87,14 @@ WHERE
         if not dry_run:
             conn.commit()
 
+
 def update_schemas(agol_meta_map, dry_run=False):
+    """updates the schemas for all tables in the agol items table
+    """
     alter_statements = {}
 
     with pyodbc.connect(config.get_source_connection()[6:]) as conn:
-        sql = """SELECT
+        sql = '''SELECT
     LOWER(table_schema) as table_schema,
     LOWER(table_name) as table_name,
     lower(column_name) as column_name,
@@ -105,7 +111,7 @@ WHERE
     AND c.TABLE_SCHEMA not in ('sde',
     'meta')
 ORDER BY
-    c.table_name;"""
+    c.table_name;'''
 
         with conn.cursor() as cursor:
             result = cursor.execute(sql)
