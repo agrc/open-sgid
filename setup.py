@@ -14,7 +14,7 @@ setup(
     version='1.2.1',
     license='MIT',
     description='A cli to synchronize the internal sgid with the open sgid',
-    author='AGRC',
+    author='UGRC',
     author_email='agrc@utah.gov',
     url='https://github.com/agrc/open-sgid',
     packages=find_packages('src'),
@@ -33,25 +33,19 @@ setup(
     },
     keywords=['gis'],
     install_requires=[
-        'colorama==0.*',
-        'docopt==0.*',
-        'pyodbc==4.*',
-        'psycopg2-binary==2.*',
-        'python-dotenv==0.*',
-        'gdal==3.*'
+        'colorama==0.*', 'docopt==0.*', 'pyodbc==4.*', 'psycopg2-binary==2.*', 'python-dotenv==0.*', 'gdal==3.*'
     ],
     extras_require={
         'tests': [
-            'pylint-quotes==0.2.*',
-            'pylint==2.*',
-            'pytest-cov==2.*',
-            'pytest-instafail==0.4.*',
-            'pytest-isort==1.*',
-            'pytest-mock==3.*',
-            'pytest-pylint==0.17.*',
-            'pytest-watch==4.*',
-            'pytest==5.*',
-            'yapf==0.*',
+            'pylint-quotes~=0.2',
+            'pylint~=2.11',
+            'pytest-cov~=3.0',
+            'pytest-instafail~=0.4',
+            'pytest-isort~=2.0',
+            'pytest-pylint~=0.18',
+            'pytest-watch~=4.2',
+            'pytest~=6.0',
+            'yapf~=0.31',
         ]
     },
     setup_requires=[
