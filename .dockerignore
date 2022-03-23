@@ -1,0 +1,17 @@
+**/__pycache__
+**/tests
+**/cloudb.egg-info
+**/.eggs
+**/.env
+**/.github
+**/.pyteset_cache
+**/.vscode
+**/.coverage
+**/.editorconfig
+**/.gitattributes
+**/.gitignore
+**/cov.xml
+**/license
+**/pylintrc
+**/readme.md
+**/setup.cfg
