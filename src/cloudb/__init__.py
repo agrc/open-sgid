@@ -19,6 +19,7 @@ logging.basicConfig(
     level=logging.DEBUG
 )
 
+
 def execute_sql(sql, connection):
     """executes sql on the information
     sql: string T-SQL
