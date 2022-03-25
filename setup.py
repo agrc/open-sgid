@@ -36,6 +36,10 @@ setup(
         'colorama==0.*', 'docopt==0.*', 'pyodbc==4.*', 'psycopg2-binary==2.*', 'python-dotenv==0.*', 'gdal==3.*'
     ],
     extras_require={
+        'cloud-run': [
+            'flask==2.*',
+            'gunicorn==20.*',
+        ],
         'tests': [
             'pylint-quotes~=0.2',
             'pylint~=2.11',
