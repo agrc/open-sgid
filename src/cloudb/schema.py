@@ -5,11 +5,12 @@ schema.py
 A module that modifies schemas
 """
 
+import logging
+
 import psycopg2
 import pyodbc
-from colorama import Fore
 
-from . import LOG, config
+from . import config
 
 
 def drop_schemas(schemas):
@@ -22,7 +23,7 @@ def drop_schemas(schemas):
         for name in schemas:
             sql.append(f'DROP SCHEMA {name} CASCADE')
 
-        LOG.info(f'dropping schema for {sql}')
+        logging.info('dropping schema for %s', sql)
         with conn.cursor() as cursor:
             cursor.execute(';'.join(sql))
 
@@ -41,7 +42,7 @@ def create_schemas(schemas):
             sql.append(f'GRANT ALL ON SCHEMA {name} TO {config.ADMIN["name"]}')
             sql.append(f'GRANT USAGE ON SCHEMA {name} TO public')
 
-        LOG.info(f'creating schemas for {sql}')
+        logging.info('creating schemas for %s', sql)
         with conn.cursor() as cursor:
             cursor.execute(';'.join(sql))
 
@@ -71,18 +72,18 @@ WHERE
                 statements.append(f'ALTER COLUMN {column} TYPE {data_type} USING {column}::{data_type}')
 
     if len(statements) < 1:
-        LOG.verbose(f'skipping {Fore.RED}{pg_table}{Fore.RESET}')
+        logging.debug('skipping %s', pg_table)
 
         return
 
     with psycopg2.connect(**config.DBO_CONNECTION) as conn:
         with conn.cursor() as cursor:
             sql = f'ALTER TABLE {pg_table} {", ".join(statements)};'
-            LOG.verbose(f'updating schema for {Fore.CYAN}{pg_table}{Fore.RESET} with {Fore.MAGENTA}{sql}{Fore.RESET}')
+            logging.debug('updating schema for %s with %s', pg_table, sql)
 
             if not dry_run:
                 result = cursor.execute(sql)
-                LOG.verbose(f'result: {Fore.GREEN}{result}{Fore.RESET}')
+                logging.debug('result: %s', result)
 
         if not dry_run:
             conn.commit()
@@ -129,11 +130,11 @@ ORDER BY
             for table, alter_column_statements in alter_statements.items():
                 sql = f'ALTER TABLE {table} {", ".join(alter_column_statements)};'
 
-                LOG.verbose(f'updating schema for {Fore.CYAN}{table}{Fore.RESET} with {Fore.MAGENTA}{sql}{Fore.RESET}')
+                logging.debug('updating schema for %s with %s', table, sql)
 
                 if not dry_run:
                     result = cursor.execute(sql)
-                    LOG.verbose(f'result: {Fore.GREEN}{result}{Fore.RESET}')
+                    logging.debug('result: %s', result)
 
             if not dry_run:
                 conn.commit()

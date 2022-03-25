@@ -5,19 +5,19 @@ roles.py
 A module that allows for role modifications
 """
 
+import logging
 from textwrap import dedent
 
 import psycopg2
-from colorama import Fore
 
-from . import LOG, config, execute_sql
+from . import config, execute_sql
 
 
 def create_read_only_user(schemas):
     """create public user
     """
 
-    LOG.info(f'creating {Fore.CYAN}read only{Fore.RESET} role')
+    logging.info('creating read only role')
 
     with psycopg2.connect(**config.DBO_CONNECTION) as conn:
         with conn.cursor() as cursor:
@@ -32,7 +32,7 @@ def create_read_only_user(schemas):
                         NOCREATEDB
                         NOCREATEROLE
                         NOINHERIT
-                        NOLOGIN
+                        NOloggingIN
                         NOREPLICATION
                         VALID UNTIL 'infinity';
 
@@ -60,7 +60,7 @@ def create_read_only_user(schemas):
 
     execute_sql(';'.join(sql), config.DBO_CONNECTION)
 
-    LOG.info(f'adding {Fore.CYAN}agrc{Fore.RESET} user to {Fore.MAGENTA}read only{Fore.RESET} role')
+    logging.info('adding agrc user to read only role')
 
     sql = dedent(
         '''
