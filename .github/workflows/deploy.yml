@@ -1,0 +1,111 @@
+name: open sgid cli deployment
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: "${{ github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: prod
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: ⬇️ Set up code
+        uses: actions/checkout@v2
+
+      - name: 🗝️ Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v0
+        with:
+          create_credentials_file: true
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT_EMAIL }}
+
+      - name: 🐳 Set up Docker Buildx
+        id: builder
+        uses: docker/setup-buildx-action@v1
+
+      - name: 🗝️ Authenticate Docker to Google Cloud
+        uses: docker/login-action@v1
+        with:
+          registry: gcr.io
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: ✂️ Set short commit hash
+        run: |
+          echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+
+      - name: 📦 Build and push image
+        uses: docker/build-push-action@v2
+        with:
+          builder: ${{ steps.builder.outputs.name }}
+          tags: gcr.io/${{ secrets.PROJECT_ID }}/app:latest,gcr.io/${{ secrets.PROJECT_ID }}/app:$SHORT_SHA
+          context: .
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 🚀 Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v0
+        with:
+          service: app
+          image: gcr.io/${{ secrets.PROJECT_ID }}/app
+          region: us-west3
+          flags: |
+            --service-account=cloud-run-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com
+            --vpc-connector=${{ secrets.VPC }}
+            --vpc-egress=all-traffic
+            --max-instances=1
+            --concurrency=1
+            --cpu=4
+            --memory=6Gi
+            --timeout=30m
+          secrets: |
+            /secrets/db/connection=database-connections:latest
+
+      - name: 🕰️ Create cloud scheduler
+        run: |
+          if [ ! "$(gcloud scheduler jobs list --location=us-west3 | grep app)" ]; then
+            gcloud scheduler jobs create http app \
+              --description="Trigger the app bot once a week on monday morning" \
+              --schedule="0 0 * * *" \
+              --time-zone=America/Denver \
+              --uri=$(gcloud run services describe app --region us-west3 --format 'value(status.url)')/scheduled \
+              --http-method=POST \
+              --max-retry-attempts=0 \
+              --min-backoff=30m \
+              --max-backoff=1h \
+              --max-doublings=1 \
+              --attempt-deadline=30m \
+              --oidc-service-account-email=cloud-scheduler-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com \
+              --location=us-west3 \
+              --quiet
+          else
+            gcloud scheduler jobs update http app \
+              --description="Trigger the app bot once a week on monday morning" \
+              --schedule="0 0 * * *" \
+              --time-zone=America/Denver \
+              --uri=$(gcloud run services describe app --region us-west3 --format 'value(status.url)')/scheduled \
+              --http-method=POST \
+              --max-retry-attempts=0 \
+              --min-backoff=30m \
+              --max-backoff=1h \
+              --max-doublings=1 \
+              --attempt-deadline=30m \
+              --oidc-service-account-email=cloud-scheduler-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com \
+              --location=us-west3 \
+              --quiet
+          fi
