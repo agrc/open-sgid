@@ -1,4 +1,4 @@
-FROM osgeo/gdal:latest
+FROM osgeo/gdal:ubuntu-small-latest
 
 RUN apt-get update -y && apt-get upgrade -y
 
@@ -15,7 +15,6 @@ RUN ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
 
 RUN apt-get install -y --no-install-recommends \
   python3-dev \
-  python3.9 \
   python3-pip \
   && \
   apt-get clean && \
