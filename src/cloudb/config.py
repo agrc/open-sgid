@@ -4,12 +4,24 @@
 config.py
 A module that holds configuration items
 """
-import os
+import json
+import logging
+from pathlib import Path
 from textwrap import dedent
 
-from dotenv import load_dotenv
+secrets_file = Path('/secrets/db/connection')
+local_secrets_file = Path(__file__).parent / 'secrets' / 'db' / 'connection'
+secrets = {}
 
-load_dotenv()
+if secrets_file.exists():
+    logging.debug('loading secrets from %s', secrets_file)
+    secrets = json.loads(secrets_file.read_text(encoding='utf-8'))
+elif local_secrets_file.exists():
+    logging.debug('loading secrets from %s', local_secrets_file)
+    secrets = json.loads(local_secrets_file.read_text(encoding='utf-8'))
+else:
+    logging.critical('no secrets file found')
+    raise Exception('no secrets file found')
 
 SCHEMAS = [
     'bioscience', 'boundaries', 'cadastre', 'climate', 'demographic', 'economy', 'elevation', 'energy', 'environment',
@@ -26,30 +38,30 @@ DBO = 'postgres'
 
 ADMIN = {
     'name': 'dba',
-    'password': os.getenv('CLOUDB_ADMIN_PASSWORD'),
+    'password': secrets['adminPassword'],
 }
 
 PUBLIC = {
     'name': 'sgid_viewer',
-    'password': os.getenv('CLOUDB_PUBLIC_PASSWORD'),
+    'password': secrets['publicPassword'],
 }
 
 SRC_CONNECTION = {
-    'host': os.getenv('CLOUDB_SRC_HOST'),
+    'host': secrets['srcHost'],
     'database': 'SGID',
     'user': 'internal',
-    'password': os.getenv('CLOUDB_SRC_PASSWORD'),
+    'password': secrets['srcPassword'],
 }
 
 DBO_CONNECTION = {
-    'host': os.getenv('CLOUDB_HOST'),
+    'host': secrets['host'],
     'database': DB,
     'user': DBO,
-    'password': os.getenv('CLOUDB_PG_PASSWORD'),
+    'password': secrets['pgPassword'],
 }
 
 DBA_CONNECTION = {
-    'host': os.getenv('CLOUDB_HOST'),
+    'host': secrets['host'],
     'database': DB,
     'user': ADMIN['name'],
     'password': ADMIN['password'],

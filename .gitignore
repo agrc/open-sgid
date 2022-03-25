@@ -122,7 +122,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# terraform
-src/terraform/terraform-sa.json
-src/terraform/.terraform/
+# secrets
 src/.last_checked
+src/cloudb/secrets/db/connection
