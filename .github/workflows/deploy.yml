@@ -43,15 +43,11 @@ jobs:
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
 
-      - name: ✂️ Set short commit hash
-        run: |
-          echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
-
       - name: 📦 Build and push image
         uses: docker/build-push-action@v2
         with:
           builder: ${{ steps.builder.outputs.name }}
-          tags: gcr.io/${{ secrets.PROJECT_ID }}/app:latest,gcr.io/${{ secrets.PROJECT_ID }}/app:$SHORT_SHA
+          tags: gcr.io/${{ secrets.PROJECT_ID }}/app:latest,gcr.io/${{ secrets.PROJECT_ID }}/app:${{ github.sha }}
           context: .
           push: true
           cache-from: type=gha
