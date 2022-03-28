@@ -336,6 +336,8 @@ def import_data(if_not_exists, missing_only, dry_run):
     dry_run: do not modify the destination
     missing_only: only import missing tables
     """
+    logging.info('importing tables missing from the source')
+
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
 
@@ -414,6 +416,8 @@ def trim(dry_run):
     drop the tables in the destination found in the difference between the two sets
     """
 
+    logging.info('trimming tables that do not exist in the source')
+
     source, destination = _get_table_sets()
     items_to_trim = source - destination
     items_to_trim_count = len(items_to_trim)
@@ -449,6 +453,8 @@ def update(specific_tables, dry_run):
     specific_tables: a list of tables from the source without the schema
     dry_run: bool if insertion should actually happen
     """
+    logging.info('updating tables %s', ','.join(specific_tables))
+
     internal_sgid = config.get_source_connection()
 
     if not specific_tables or len(specific_tables) == 0:
@@ -643,6 +649,7 @@ def main():
         sys.exit()
 
     if args['update']:
+
         tables = args['--table']
 
         if args['--from-change-detection']:
