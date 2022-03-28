@@ -39,6 +39,7 @@ setup(
         'cloud-run': [
             'flask==2.*',
             'gunicorn==20.*',
+            'google-cloud-storage==2.*',
         ],
         'tests': [
             'pylint-quotes~=0.2',

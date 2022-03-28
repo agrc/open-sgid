@@ -16,16 +16,15 @@ Usage:
   cloudb update-schema [--table=<tables>... --dry-run --verbosity=<level>]
 """
 
-import json
 import logging
 import sys
 from datetime import datetime
-from pathlib import Path
 from time import perf_counter
 
 import psycopg2
 import pyodbc
 from docopt import docopt
+from google.cloud import storage
 from osgeo import gdal, ogr
 
 from . import CONNECTION_TABLE_CACHE, config, execute_sql, roles, schema, utils
@@ -35,6 +34,7 @@ gdal.SetConfigOption('MSSQLSPATIAL_LIST_ALL_TABLES', 'YES')
 gdal.SetConfigOption('PG_LIST_ALL_TABLES', 'YES')
 gdal.SetConfigOption('PG_USE_POSTGIS', 'YES')
 gdal.SetConfigOption('PG_USE_COPY', 'YES')
+
 
 def enable_extensions():
     """enable the database extension
@@ -466,24 +466,20 @@ def update(specific_tables, dry_run):
     agol_meta_map = _get_table_meta()
 
     if len(specific_tables) != len(layer_schema_map):
-        logging.warning('input %s tables but only %s found. check your spelling', len(specific_tables), len(layer_schema_map))
+        logging.warning(
+            'input %s tables but only %s found. check your spelling', len(specific_tables), len(layer_schema_map)
+        )
 
     for schema_name, layer, fields in layer_schema_map:
         _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
 
 
-def read_last_check_date():
+def read_last_check_date(gcp_bucket):
     """reads the last check date from the config file
+    gcp_bucket: the bucket to find the file in
     """
-    #: TODO move to cloud storage
-    last_checked = Path('./.last_checked')
-
-    if not last_checked.exists():
-        last_checked.touch()
-
-    last_date_string = ''
-    with open(last_checked, 'r', encoding='utf8') as logging_file:
-        last_date_string = logging_file.readline().strip()
+    last_checked = gcp_bucket.get_blob('.last_checked')
+    last_date_string = last_checked.download_as_string()
 
     if last_date_string is None or len(last_date_string) < 1:
         return None
@@ -491,22 +487,21 @@ def read_last_check_date():
     return last_date_string
 
 
-def update_last_check_date():
+def update_last_check_date(gcp_bucket):
     """updates the last check date in the config file
+    gcp_bucket: the bucket to find the file in
     """
-    last_checked = Path('./.last_checked')
-
-    if not last_checked.exists():
-        last_checked.touch()
-
-    with open(last_checked, 'w', encoding='utf8') as logging_file:
-        logging_file.write(datetime.today().strftime('%Y-%m-%d'))
+    blob = gcp_bucket.get_blob('.last_checked')
+    blob.upload_from_string(datetime.today().strftime('%Y-%m-%d'))
 
 
 def get_tables_from_change_detection():
     """get changes from cambiador managed table
     """
-    last_checked = read_last_check_date()
+    client = storage.Client()
+    bucket = client.get_bucket('ut-dts-agrc-open-sgid-prod-data')
+
+    last_checked = read_last_check_date(bucket)
 
     if last_checked is None:
         last_checked = datetime.today()
@@ -532,7 +527,7 @@ def get_tables_from_change_detection():
             table_name = table_parts['table_name']
             updated_tables.append(f'{table_schema}.{table_name}')
 
-    update_last_check_date()
+    update_last_check_date(bucket)
 
     return updated_tables
 
@@ -607,7 +602,6 @@ def main():
 
             logging.info('completed in %s', utils.format_time(perf_counter() - start_seconds))
 
-
             sys.exit()
 
         if args['indexes']:
@@ -681,6 +675,7 @@ def main():
     logging.info('completed in %s', utils.format_time(perf_counter() - start_seconds))
 
     sys.exit()
+
 
 if __name__ == '__main__':
     main()
