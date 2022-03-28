@@ -485,7 +485,7 @@ def read_last_check_date(gcp_bucket):
     gcp_bucket: the bucket to find the file in
     """
     last_checked = gcp_bucket.get_blob('.last_checked')
-    last_date_string = last_checked.download_as_string()
+    last_date_string = last_checked.download_as_bytes().decode('utf-8')
 
     if last_date_string is None or len(last_date_string) < 1:
         return None
