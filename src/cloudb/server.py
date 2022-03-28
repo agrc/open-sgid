@@ -28,6 +28,7 @@ def schedule():
     if 'IS_DEVELOPMENT' in os.environ:
         dry_run = True
 
+    logging.info('dry run: %s', dry_run)
     has_errors = list([])
     total_seconds = perf_counter()
 
@@ -65,8 +66,11 @@ def schedule():
         logging.error('app failure %s', error)
         has_errors.append(error)
 
-    if has_errors:
-        return '||'.join(has_errors)
+    if len(has_errors) > 0:
+        errors = '||'.join([str(error) for error in has_errors])
+        logging.error(errors)
+
+        return errors
 
     logging.info('successful run completed in %s', utils.format_time(perf_counter() - total_seconds))
 
