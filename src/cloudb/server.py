@@ -18,7 +18,7 @@ from .main import get_tables_from_change_detection, import_data, trim, update
 app = Flask(__name__)
 
 
-@app.route('/gcp/scheduled', methods=['POST'])
+@app.route('/scheduled', methods=['POST'])
 def schedule():
     """ schedule: the post route that gcp scheduler sends when it is time to execute
     """
