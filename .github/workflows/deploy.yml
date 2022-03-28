@@ -52,6 +52,7 @@ jobs:
             type=ref,suffix=-{{sha}},event=branch
             type=ref,prefix=pr-,suffix=-{{sha}},event=pr
             type=semver,pattern={{version}}
+            latest
 
       - name: 📦 Build and push image
         uses: docker/build-push-action@v2
