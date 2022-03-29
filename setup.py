@@ -15,7 +15,7 @@ setup(
     license='MIT',
     description='A cli to synchronize the internal sgid with the open sgid',
     author='UGRC',
-    author_email='agrc@utah.gov',
+    author_email='ugrc-developers@utah.gov',
     url='https://github.com/agrc/open-sgid',
     packages=find_packages('src'),
     package_dir={'': 'src'},
@@ -36,15 +36,20 @@ setup(
         'colorama==0.*', 'docopt==0.*', 'pyodbc==4.*', 'psycopg2-binary==2.*', 'python-dotenv==0.*', 'gdal==3.*'
     ],
     extras_require={
+        'cloud-run': [
+            'flask==2.*',
+            'gunicorn==20.*',
+            'google-cloud-storage==2.*',
+        ],
         'tests': [
             'pylint-quotes~=0.2',
             'pylint~=2.11',
             'pytest-cov~=3.0',
             'pytest-instafail~=0.4',
-            'pytest-isort~=2.0',
+            'pytest-isort~=3.0',
             'pytest-pylint~=0.18',
             'pytest-watch~=4.2',
-            'pytest~=6.0',
+            'pytest~=7.0',
             'yapf~=0.31',
         ]
     },

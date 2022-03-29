@@ -5,12 +5,19 @@ __init__.py
 A module that denotes this as a module
 """
 
+import logging
+from sys import stdout
+
 import psycopg2
 
-from .logger import Logger
-
-LOG = Logger()
 CONNECTION_TABLE_CACHE = {}
+
+logging.basicConfig(
+    stream=stdout,
+    format='%(levelname)-7s %(asctime)s %(module)10s:%(lineno)5s %(message)s',
+    datefmt='%m-%d %H:%M:%S',
+    level=logging.DEBUG
+)
 
 
 def execute_sql(sql, connection):
@@ -18,7 +25,7 @@ def execute_sql(sql, connection):
     sql: string T-SQL
     connection: dict with connection information
     """
-    LOG.debug(f'  executing {sql}')
+    logging.debug('  executing %s', sql)
 
     with psycopg2.connect(**connection) as conn:
         with conn.cursor() as cursor:
