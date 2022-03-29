@@ -484,8 +484,13 @@ def read_last_check_date(gcp_bucket):
     """reads the last check date from the config file
     gcp_bucket: the bucket to find the file in
     """
+    last_date_string = None
     last_checked = gcp_bucket.get_blob('.last_checked')
-    last_date_string = last_checked.download_as_bytes().decode('utf-8')
+
+    if last_checked is None:
+        return None
+
+    last_date_string = last_checked.download_as_text()
 
     if last_date_string is None or len(last_date_string) < 1:
         return None
@@ -498,6 +503,10 @@ def update_last_check_date(gcp_bucket):
     gcp_bucket: the bucket to find the file in
     """
     blob = gcp_bucket.get_blob('.last_checked')
+
+    if blob is None:
+        blob = storage.Blob('.last_checked', gcp_bucket)
+
     blob.upload_from_string(datetime.today().strftime('%Y-%m-%d'))
 
 
