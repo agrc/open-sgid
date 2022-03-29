@@ -32,7 +32,7 @@ def create_read_only_user(schemas):
                         NOCREATEDB
                         NOCREATEROLE
                         NOINHERIT
-                        NOloggingIN
+                        NOLOGIN
                         NOREPLICATION
                         VALID UNTIL 'infinity';
 
