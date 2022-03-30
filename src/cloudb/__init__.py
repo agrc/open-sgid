@@ -6,17 +6,32 @@ A module that denotes this as a module
 """
 
 import logging
+from os import getenv
 from sys import stdout
 
 import psycopg2
 
 CONNECTION_TABLE_CACHE = {}
 
+level = getenv('LOG_LEVEL', 'INFO')
+log_level = logging.INFO
+
+if level == 'DEBUG':
+    log_level = logging.DEBUG
+elif level == 'INFO':
+    log_level = logging.INFO
+elif level == 'WARNING':
+    log_level = logging.WARNING
+elif level == 'ERROR':
+    log_level = logging.ERROR
+elif level == 'CRITICAL':
+    log_level = logging.CRITICAL
+
 logging.basicConfig(
     stream=stdout,
     format='%(levelname)-7s %(asctime)s %(module)10s:%(lineno)5s %(message)s',
     datefmt='%m-%d %H:%M:%S',
-    level=logging.DEBUG
+    level=log_level
 )
 
 
