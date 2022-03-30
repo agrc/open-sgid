@@ -4,16 +4,16 @@
 cloudb
 
 Usage:
-  cloudb enable extensions [--verbosity=<level>]
-  cloudb create schema [--schemas=<name> --verbosity=<level>]
-  cloudb create admin-user [--verbosity=<level>]
-  cloudb create read-only-user [--verbosity=<level>]
-  cloudb create indexes [--verbosity=<level>]
-  cloudb drop schema [--schemas=<name> --verbosity=<level>]
-  cloudb import [--missing --dry-run --verbosity=<level> --skip-if-exists]
-  cloudb trim [--dry-run --verbosity=<level>]
-  cloudb update [--table=<tables>... --dry-run --verbosity=<level> --from-change-detection]
-  cloudb update-schema [--table=<tables>... --dry-run --verbosity=<level>]
+  cloudb enable extensions
+  cloudb create schema [--schemas=<name>]
+  cloudb create admin-user
+  cloudb create read-only-user
+  cloudb create indexes
+  cloudb drop schema [--schemas=<name>]
+  cloudb import [--missing --dry-run --skip-if-exists]
+  cloudb trim [--dry-run]
+  cloudb update [--table=<tables>... --dry-run --from-change-detection]
+  cloudb update-schema [--table=<tables>... --dry-run]
 """
 
 import logging
