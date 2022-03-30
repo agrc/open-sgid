@@ -80,6 +80,7 @@ jobs:
             --cpu=1
             --memory=256Mib
             --timeout=30m
+          env_vars: 'LOG_LEVEL="INFO"'
           secrets: |
             /secrets/db/connection=database-connections:latest
 
