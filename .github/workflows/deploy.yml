@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: ⬇️ Set up code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: 🗝️ Authenticate to Google Cloud
         id: auth
@@ -78,7 +78,7 @@ jobs:
             --max-instances=1
             --concurrency=1
             --cpu=1
-            --memory=256Mi
+            --memory=512Mi
             --timeout=30m
           env_vars: 'LOG_LEVEL="INFO"'
           secrets: |
