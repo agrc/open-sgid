@@ -66,7 +66,7 @@ jobs:
 
       - name: 🚀 Deploy to Cloud Run
         id: deploy
-        uses: google-github-actions/deploy-cloudrun@v0.10.1
+        uses: google-github-actions/deploy-cloudrun@v0.10.3
         with:
           service: app
           image: gcr.io/${{ secrets.PROJECT_ID }}/app
