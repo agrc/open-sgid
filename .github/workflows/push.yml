@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: ⬇️ Set up code
         uses: actions/checkout@v4
+        with:
+          show-progress: false
 
       - name: 🗝️ Authenticate to Google Cloud
         id: auth
