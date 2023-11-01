@@ -33,17 +33,17 @@ setup(
     },
     keywords=['gis'],
     install_requires=[
-        'colorama==0.*', 'docopt==0.*', 'pyodbc==4.*', 'psycopg2-binary==2.*', 'python-dotenv==0.*', 'gdal==3.*'
+        'colorama==0.*', 'docopt==0.*', 'pyodbc>=4,<6', 'psycopg2-binary==2.*', 'python-dotenv==0.*', 'gdal==3.*'
     ],
     extras_require={
         'cloud-run': [
-            'flask==2.*',
-            'gunicorn==20.*',
+            'flask>=2,<4',
+            'gunicorn>=20,<22',
             'google-cloud-storage==2.*',
         ],
         'tests': [
             'pylint-quotes~=0.2',
-            'pylint~=2.11',
+            'pylint>=2.11,<4.0',
             'pytest-cov>=3,<5',
             'pytest-instafail~=0.4',
             'pytest-isort~=3.0',
