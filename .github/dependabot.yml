@@ -4,11 +4,18 @@ updates:
     directory: /
     schedule:
       interval: monthly
-    labels:
-      - dependencies
+    groups:
+      safe-dependencies:
+        update-types: ['minor', 'patch']
+      major-dependencies:
+        update-types: ['major']
+    commit-message:
+      prefix: deps
+      prefix-development: deps(dev)
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
-    labels:
-      - dependencies
+    groups:
+      ci-dependencies:
+        dependency-type: 'production'
