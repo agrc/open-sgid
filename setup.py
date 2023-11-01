@@ -33,7 +33,7 @@ setup(
     },
     keywords=['gis'],
     install_requires=[
-        'colorama==0.*', 'docopt==0.*', 'pyodbc==4.*', 'psycopg2-binary==2.*', 'python-dotenv==0.*', 'gdal==3.*'
+        'colorama==0.*', 'docopt==0.*', 'pyodbc>=4,<6', 'psycopg2-binary==2.*', 'python-dotenv==0.*', 'gdal==3.*'
     ],
     extras_require={
         'cloud-run': [
