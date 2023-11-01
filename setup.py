@@ -37,7 +37,7 @@ setup(
     ],
     extras_require={
         'cloud-run': [
-            'flask==2.*',
+            'flask>=2,<4',
             'gunicorn==20.*',
             'google-cloud-storage==2.*',
         ],
