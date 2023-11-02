@@ -4,8 +4,7 @@
 setup.py
 A module that installs cloudb as a module
 """
-from glob import glob
-from os.path import basename, splitext
+from pathlib import Path
 
 from setuptools import find_packages, setup
 
@@ -14,12 +13,13 @@ setup(
     version='1.2.2',
     license='MIT',
     description='A cli to synchronize the internal sgid with the open sgid',
+    long_description=(Path(__file__).parent / "README.md").read_text(),
+    long_description_content_type="text/markdown",
     author='UGRC',
     author_email='ugrc-developers@utah.gov',
     url='https://github.com/agrc/open-sgid',
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     include_package_data=True,
     zip_safe=True,
     classifiers=[
@@ -42,15 +42,14 @@ setup(
             'google-cloud-storage==2.*',
         ],
         'tests': [
-            'pylint-quotes~=0.2',
-            'pylint~=2.11',
-            'pytest-cov>=3,<5',
-            'pytest-instafail~=0.4',
-            'pytest-isort~=3.0',
-            'pytest-pylint~=0.18',
-            'pytest-watch~=4.2',
-            'pytest~=7.0',
-            'yapf~=0.31',
+            "pytest-cov==4.*",
+            "pytest-instafail==0.5.*",
+            "pytest-mock==3.*",
+            "pytest-ruff==0.*",
+            "pytest-watch==4.*",
+            "pytest==7.*",
+            "black==23.*",
+            "ruff==0.0.*",
         ]
     },
     setup_requires=[

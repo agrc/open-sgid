@@ -1,30 +1,14 @@
 {
-  "editor.codeActionsOnSave": {
-    "source.organizeImports": true
-  },
-  "editor.formatOnSave": true,
-  "editor.rulers": [
-    120
-  ],
-  "files.insertFinalNewline": true,
-  "python.formatting.provider": "yapf",
-  "python.formatting.yapfArgs": [
-    "--style",
-    "${workspaceRoot}/setup.cfg"
-  ],
-  "python.formatting.yapfPath": "yapf",
-  "python.linting.enabled": true,
-  "python.linting.flake8Enabled": false,
-  "python.linting.pycodestyleEnabled": false,
-  "python.linting.pylintEnabled": true,
-  "python.testing.pytestEnabled": true,
-  "python.testing.unittestEnabled": false,
   "cSpell.words": [
     "accesstoken",
     "agol",
+    "agolitems",
     "agrc",
+    "arcgis",
     "Buildx",
     "cadastre",
+    "cambiador",
+    "CHANGEDETECTION",
     "cloudb",
     "cloudrun",
     "colorama",
@@ -42,17 +26,26 @@
     "globalid",
     "gnis",
     "gserviceaccount",
+    "Gunicorn",
+    "instafail",
     "juab",
     "mssql",
     "mssqlspatial",
+    "NOCREATEDB",
+    "NOCREATEROLE",
     "noinherit",
+    "NOLOGIN",
+    "NOREPLICATION",
+    "NOSUPERUSER",
     "objectid",
     "odbc",
+    "OGRSQL",
     "oidc",
     "osgeo",
     "pgadmin",
     "pgify",
     "piute",
+    "POLYLINE",
     "postgis",
     "postgresql",
     "primem",
@@ -66,6 +59,29 @@
     "tooele",
     "UGRC",
     "uintah",
+    "unfixable",
     "yapf"
-  ]
+  ],
+  "editor.formatOnSave": true,
+  "editor.rulers": [
+    120
+  ],
+  "coverage-gutters.showGutterCoverage": false,
+  "coverage-gutters.showLineCoverage": true,
+  "coverage-gutters.showRulerCoverage": false,
+  "coverage-gutters.highlightdark": "rgb(61, 153, 112, .05)",
+  "coverage-gutters.noHighlightDark": "rgb(255, 65, 54, .05)",
+  "coverage-gutters.partialHighlightDark": "rgb(255, 133, 27, .05)",
+  "python.languageServer": "Pylance",
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "--no-cov"
+  ],
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  }
 }
