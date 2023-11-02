@@ -1,6 +1,6 @@
 # cloudb CLI
 
-A cli tool for taking data from MSSQL and pushing it to PostGIS.
+A cli tool for taking spatial data from MSSQL and pushing it to PostGIS.
 
 ## installation
 
