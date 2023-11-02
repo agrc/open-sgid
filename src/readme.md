@@ -4,7 +4,7 @@ A cli tool for taking spatial data from MSSQL and pushing it to PostGIS.
 
 ## installation
 
-### python
+### python with conda
 
 1. create a conda environment
    - `conda create -n cloudb`
@@ -13,6 +13,19 @@ A cli tool for taking spatial data from MSSQL and pushing it to PostGIS.
    - `conda install -c conda-forge gdal`
    - `pip install -e .`
    - for development `pip install . -e ."[tests]"
+1. fill out the `.env` variables
+1. execute cli commands
+   - `cloudb`
+
+### python with venv
+
+1. create a virtual environment
+   - `python -m venv .venv`
+   - `source ./.venv/bin/activate`
+1. install the requirements
+   - `pip install -e .`
+   - for development
+     -`pip install -e ."[tests]"
 1. fill out the `.env` variables
 1. execute cli commands
    - `cloudb`
