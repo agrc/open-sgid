@@ -564,7 +564,7 @@ def make_valid(layer):
 
 
 def create_index(layer):
-    """ creates an index if availabe in the index map
+    """ creates an index if available in the index map
     """
     if layer.lower() not in INDEXES:
         return
