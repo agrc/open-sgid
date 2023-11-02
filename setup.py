@@ -9,39 +9,44 @@ from pathlib import Path
 from setuptools import find_packages, setup
 
 setup(
-    name='cloudb',
-    version='1.2.2',
-    license='MIT',
-    description='A cli to synchronize the internal sgid with the open sgid',
-    long_description=(Path(__file__).parent / "README.md").read_text(),
+    name="cloudb",
+    version="1.2.2",
+    license="MIT",
+    description="A cli to synchronize the internal sgid with the open sgid",
+    long_description=(Path(__file__).parent / "src" / "readme.md").read_text(),
     long_description_content_type="text/markdown",
-    author='UGRC',
-    author_email='ugrc-developers@utah.gov',
-    url='https://github.com/agrc/open-sgid',
-    packages=find_packages('src'),
-    package_dir={'': 'src'},
+    author="UGRC",
+    author_email="ugrc-developers@utah.gov",
+    url="https://github.com/agrc/open-sgid",
+    packages=find_packages("src"),
+    package_dir={"": "src"},
     include_package_data=True,
     zip_safe=True,
     classifiers=[
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Developers',
-        'Topic :: Utilities',
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Topic :: Utilities",
     ],
     project_urls={
-        'Issue Tracker': 'https://github.com/agrc/open-sgid/issues',
+        "Issue Tracker": "https://github.com/agrc/open-sgid/issues",
     },
-    keywords=['gis'],
+    keywords=["gis"],
     install_requires=[
-        'colorama==0.*', 'docopt==0.*', 'pyodbc==4.*', 'psycopg2-binary==2.*', 'python-dotenv==0.*', 'gdal==3.*'
+        "colorama==0.*",
+        "docopt==0.*",
+        "pyodbc==4.*",
+        "psycopg2-binary==2.*",
+        "python-dotenv==0.*",
+        "gdal==3.*",
     ],
     extras_require={
-        'cloud-run': [
-            'flask==2.*',
-            'gunicorn==20.*',
-            'google-cloud-storage==2.*',
+        "cloud-run": [
+            "flask==2.*",
+            "gunicorn==20.*",
+            "google-cloud-storage==2.*",
         ],
-        'tests': [
+        "tests": [
             "pytest-cov==4.*",
             "pytest-instafail==0.5.*",
             "pytest-mock==3.*",
@@ -50,12 +55,14 @@ setup(
             "pytest==7.*",
             "black==23.*",
             "ruff==0.0.*",
-        ]
+        ],
     },
     setup_requires=[
-        'pytest-runner',
+        "pytest-runner",
     ],
-    entry_points={'console_scripts': [
-        'cloudb = cloudb.main:main',
-    ]},
+    entry_points={
+        "console_scripts": [
+            "cloudb = cloudb.main:main",
+        ]
+    },
 )

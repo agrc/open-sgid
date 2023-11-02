@@ -14,12 +14,12 @@ def format_time(seconds):
     hour = 60.00 * minute
 
     if seconds < 30:
-        return f'{int(seconds * 1000)} ms'
+        return f"{int(seconds * 1000)} ms"
 
     if seconds < 90:
-        return f'{round(seconds, 2)} seconds'
+        return f"{round(seconds, 2)} seconds"
 
     if seconds < 90 * minute:
-        return f'{round(seconds / minute, 2)} minutes'
+        return f"{round(seconds / minute, 2)} minutes"
 
-    return f'{round(seconds / hour, 2)} hours'
+    return f"{round(seconds / hour, 2)} hours"

@@ -9,66 +9,86 @@ import logging
 from pathlib import Path
 from textwrap import dedent
 
-secrets_file = Path('/secrets/db/connection')
-local_secrets_file = Path(__file__).parent / 'secrets' / 'db' / 'connection'
+secrets_file = Path("/secrets/db/connection")
+local_secrets_file = Path(__file__).parent / "secrets" / "db" / "connection"
 secrets = {}
 
 if secrets_file.exists():
-    logging.debug('loading secrets from %s', secrets_file)
-    secrets = json.loads(secrets_file.read_text(encoding='utf-8'))
+    logging.debug("loading secrets from %s", secrets_file)
+    secrets = json.loads(secrets_file.read_text(encoding="utf-8"))
 elif local_secrets_file.exists():
-    logging.debug('loading secrets from %s', local_secrets_file)
-    secrets = json.loads(local_secrets_file.read_text(encoding='utf-8'))
+    logging.debug("loading secrets from %s", local_secrets_file)
+    secrets = json.loads(local_secrets_file.read_text(encoding="utf-8"))
 else:
-    logging.critical('no secrets file found')
-    raise Exception('no secrets file found')
+    logging.critical("no secrets file found")
+    raise Exception("no secrets file found")
 
 SCHEMAS = [
-    'bioscience', 'boundaries', 'cadastre', 'climate', 'demographic', 'economy', 'elevation', 'energy', 'environment',
-    'farming', 'geoscience', 'health', 'history', 'indices', 'location', 'planning', 'political', 'raster',
-    'recreation', 'society', 'transportation', 'utilities', 'water'
+    "bioscience",
+    "boundaries",
+    "cadastre",
+    "climate",
+    "demographic",
+    "economy",
+    "elevation",
+    "energy",
+    "environment",
+    "farming",
+    "geoscience",
+    "health",
+    "history",
+    "indices",
+    "location",
+    "planning",
+    "political",
+    "raster",
+    "recreation",
+    "society",
+    "transportation",
+    "utilities",
+    "water",
 ]
 
-EXCLUDE_SCHEMAS = ['sde', 'meta']
-EXCLUDE_FIELDS = ['objectid', 'fid', 'gdb_geomattr_data']
+EXCLUDE_SCHEMAS = ["sde", "meta"]
+EXCLUDE_FIELDS = ["objectid", "fid", "gdb_geomattr_data"]
 
-DB = 'opensgid'
+DB = "opensgid"
 
-DBO = 'postgres'
+DBO = "postgres"
 
 ADMIN = {
-    'name': 'dba',
-    'password': secrets['adminPassword'],
+    "name": "dba",
+    "password": secrets["adminPassword"],
 }
 
 PUBLIC = {
-    'name': 'sgid_viewer',
-    'password': secrets['publicPassword'],
+    "name": "sgid_viewer",
+    "password": secrets["publicPassword"],
 }
 
 SRC_CONNECTION = {
-    'host': secrets['srcHost'],
-    'database': 'SGID',
-    'user': 'internal',
-    'password': secrets['srcPassword'],
+    "host": secrets["srcHost"],
+    "database": "SGID",
+    "user": "internal",
+    "password": secrets["srcPassword"],
 }
 
 DBO_CONNECTION = {
-    'host': secrets['host'],
-    'database': DB,
-    'user': DBO,
-    'password': secrets['pgPassword'],
+    "host": secrets["host"],
+    "database": DB,
+    "user": DBO,
+    "password": secrets["pgPassword"],
 }
 
 DBA_CONNECTION = {
-    'host': secrets['host'],
-    'database': DB,
-    'user': ADMIN['name'],
-    'password': ADMIN['password'],
+    "host": secrets["host"],
+    "database": DB,
+    "user": ADMIN["name"],
+    "password": ADMIN["password"],
 }
 
 UTM = dedent(
-    '''PROJCS["NAD83 / UTM zone 12N",
+    """PROJCS["NAD83 / UTM zone 12N",
     GEOGCS["NAD83",
         DATUM["North_American_Datum_1983",
             SPHEROID["GRS 1980",6378137,298.257222101,
@@ -89,13 +109,12 @@ UTM = dedent(
     PARAMETER["false_northing",0],
         AUTHORITY["EPSG","26912"],
     AXIS["Easting",EAST],
-    AXIS["Northing",NORTH]]'''
+    AXIS["Northing",NORTH]]"""
 )
 
 
 def format_ogr_connection(connection):
-    """a method to format a connection string for ogr usage
-    """
+    """a method to format a connection string for ogr usage"""
     return (
         f"PG:host={connection['host']} "
         f"port=5432 user='{connection['user']}' "
@@ -105,13 +124,12 @@ def format_ogr_connection(connection):
 
 
 def get_source_connection():
-    """a method to format the sql server source data connection string
-    """
+    """a method to format the sql server source data connection string"""
     return (
-        'MSSQL:driver=ODBC Driver 17 for SQL Server;'
+        "MSSQL:driver=ODBC Driver 17 for SQL Server;"
         f"server={SRC_CONNECTION['host']};"
         f"database={SRC_CONNECTION['database']};"
         f"UID={SRC_CONNECTION['user']};"
         f"PWD={SRC_CONNECTION['password']};"
-        'trusted_connection=no;'
+        "trusted_connection=no;"
     )

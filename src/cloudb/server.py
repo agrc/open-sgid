@@ -18,17 +18,16 @@ from .main import get_tables_from_change_detection, import_data, trim, update
 app = Flask(__name__)
 
 
-@app.route('/scheduled', methods=['POST'])
+@app.route("/scheduled", methods=["POST"])
 def schedule():
-    """ schedule: the post route that gcp scheduler sends when it is time to execute
-    """
-    logging.debug('request accepted')
+    """schedule: the post route that gcp scheduler sends when it is time to execute"""
+    logging.debug("request accepted")
 
     dry_run = False
-    if 'IS_DEVELOPMENT' in os.environ:
+    if "IS_DEVELOPMENT" in os.environ:
         dry_run = True
 
-    logging.info('dry run: %s', dry_run)
+    logging.info("dry run: %s", dry_run)
     has_errors = list([])
     total_seconds = perf_counter()
 
@@ -37,9 +36,9 @@ def schedule():
 
         trim(dry_run)
 
-        logging.info('completed in %s', utils.format_time(perf_counter() - trim_seconds))
+        logging.info("completed in %s", utils.format_time(perf_counter() - trim_seconds))
     except Exception as error:
-        logging.error('trim failure %s', error)
+        logging.error("trim failure %s", error)
         has_errors.append(error)
 
     try:
@@ -49,10 +48,10 @@ def schedule():
 
         import_data(skip_if_missing, missing, dry_run)
 
-        logging.info('completed in %s', utils.format_time(perf_counter() - import_seconds))
+        logging.info("completed in %s", utils.format_time(perf_counter() - import_seconds))
 
     except Exception as error:
-        logging.error('app failure %s', error)
+        logging.error("app failure %s", error)
         has_errors.append(error)
 
     try:
@@ -61,25 +60,25 @@ def schedule():
         tables = get_tables_from_change_detection()
         update(tables, dry_run)
 
-        logging.info('completed in %s', utils.format_time(perf_counter() - update_seconds))
+        logging.info("completed in %s", utils.format_time(perf_counter() - update_seconds))
     except Exception as error:
-        logging.error('app failure %s', error)
+        logging.error("app failure %s", error)
         has_errors.append(error)
 
     if len(has_errors) > 0:
-        errors = '||'.join([str(error) for error in has_errors])
+        errors = "||".join([str(error) for error in has_errors])
         logging.error(errors)
 
         return errors
 
-    logging.info('successful run completed in %s', utils.format_time(perf_counter() - total_seconds))
+    logging.info("successful run completed in %s", utils.format_time(perf_counter() - total_seconds))
 
-    return ('', 204)
+    return ("", 204)
 
 
-if __name__ == '__main__':
-    PORT = int(str(os.getenv('PORT'))) if os.getenv('PORT') else 8080
+if __name__ == "__main__":
+    PORT = int(str(os.getenv("PORT"))) if os.getenv("PORT") else 8080
 
     # This is used when running locally. Gunicorn is used to run the
     # application on Cloud Run. See entrypoint in Dockerfile.
-    app.run(host='127.0.0.1', port=PORT, debug=True)
+    app.run(host="127.0.0.1", port=PORT, debug=True)
