@@ -41,7 +41,7 @@ jobs:
       - name: 🗝️ Authenticate Docker to Google Cloud
         uses: docker/login-action@v3
         with:
-          registry: gcr.io
+          registry: us-central1-docker.pkg.dev
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
 
@@ -49,12 +49,12 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: gcr.io/${{ secrets.PROJECT_ID }}/app
+          images: us-central1-docker.pkg.dev/${{ secrets.PROJECT_ID }}/images/app
           tags: |
             type=ref,suffix=-{{sha}},event=branch
             type=ref,prefix=pr-,suffix=-{{sha}},event=pr
             type=semver,pattern={{version}}
-            latest
+            type=raw,value=latest
 
       - name: 📦 Build and push image
         uses: docker/build-push-action@v5
@@ -67,12 +67,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: 🔍️ Set Image Name
+        run: |
+          IMAGE_ID=$(echo $DOCKER_METADATA_OUTPUT_TAGS | cut -d ' ' -f 1)
+          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
+
       - name: 🚀 Deploy to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v1
         with:
           service: app
-          image: gcr.io/${{ secrets.PROJECT_ID }}/app
+          image: ${{ env.IMAGE_ID }}
           region: us-west3
           flags: |
             --service-account=cloud-run-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com
