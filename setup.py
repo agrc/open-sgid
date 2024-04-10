@@ -35,26 +35,26 @@ setup(
     install_requires=[
         "colorama==0.*",
         "docopt==0.*",
-        "pyodbc==4.*",
+        "pyodbc==5.*",
         "psycopg2-binary==2.*",
         "python-dotenv==0.*",
         "gdal==3.*",
     ],
     extras_require={
         "cloud-run": [
-            "flask==2.*",
-            "gunicorn==20.*",
+            "flask==3.*",
+            "gunicorn==21.*",
             "google-cloud-storage==2.*",
         ],
         "tests": [
-            "pytest-cov==4.*",
+            "pytest-cov==5.*",
             "pytest-instafail==0.5.*",
             "pytest-mock==3.*",
             "pytest-ruff==0.*",
             "pytest-watch==4.*",
-            "pytest==7.*",
-            "black==23.*",
-            "ruff==0.0.*",
+            "pytest==8.*",
+            "black==24.*",
+            "ruff==0.*",
         ],
     },
     setup_requires=[
