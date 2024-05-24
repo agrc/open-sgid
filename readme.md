@@ -17,12 +17,13 @@ Please read, understand, and follow the [terms of service](https://gis.utah.gov/
 
 ### Connection Information
 
-|  |  |
+| | |
 |:--|:--|
 | Database Driver | PostgresSQL |
 | Instance | opensgid.agrc.utah.gov |
 | Username | agrc |
 | Password | agrc |
+| Database Name | opensgid |
 
 ### ESRI client support
 
