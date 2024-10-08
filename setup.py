@@ -37,13 +37,13 @@ setup(
         "docopt==0.*",
         "pyodbc==5.*",
         "psycopg2-binary==2.*",
-        "python-dotenv==0.*",
+        "python-dotenv==1.*",
         "gdal==3.*",
     ],
     extras_require={
         "cloud-run": [
             "flask==3.*",
-            "gunicorn>=21,<23",
+            "gunicorn==23.*",
             "google-cloud-storage==2.*",
         ],
         "tests": [
@@ -53,7 +53,6 @@ setup(
             "pytest-ruff==0.*",
             "pytest-watch==4.*",
             "pytest==8.*",
-            "black==24.*",
             "ruff==0.*",
         ],
     },
