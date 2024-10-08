@@ -1,4 +1,4 @@
-FROM ghcr.io/osgeo/gdal:ubuntu-full-3.9.2
+FROM ghcr.io/osgeo/gdal:ubuntu-full-3.8.5
 
 RUN chmod +rwx /etc/ssl/openssl.cnf
 RUN sed -i 's/TLSv1.2/TLSv1/g' /etc/ssl/openssl.cnf
