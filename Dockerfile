@@ -30,13 +30,11 @@ RUN apt-get install -y --no-install-recommends \
 
 RUN apt reinstall ca-certificates -y
 
-RUN curl -O https://packages.microsoft.com/keys/microsoft.asc
+RUN curl -s https://packages.microsoft.com/keys/microsoft.asc | tee /etc/apt/trusted.gpg.d/microsoft.asc
+RUN curl -s https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
+RUN curl -s https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | tee /etc/apt/sources.list.d/mssql-release.list
 
-RUN apt-key add microsoft.asc
-
-RUN curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list > /etc/apt/sources.list.d/mssql-release.list
-
-RUN apt-get update -y
+RUN apt-get update && apt install -y apt-utils
 
 RUN ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
   msodbcsql17 && apt-get clean
