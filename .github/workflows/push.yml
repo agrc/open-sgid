@@ -3,125 +3,30 @@ name: Push Events
 on:
   push:
     branches:
+      - dev
       - main
 
 concurrency:
-  group: "${{ github.head_ref || github.ref }}"
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy-prod:
+  release-please:
+    name: Create release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: prod
     permissions:
-      id-token: write
-      contents: read
+      contents: write
+      pull-requests: write
 
     steps:
-      - name: ⬇️ Set up code
-        uses: actions/checkout@v4
+      - name: 🚀 Create Release
+        id: release-please
+        uses: agrc/release-composite-action@v1
         with:
-          show-progress: false
-
-      - name: 🗝️ Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          create_credentials_file: true
-          token_format: access_token
-          workload_identity_provider: ${{ secrets.IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.SERVICE_ACCOUNT_EMAIL }}
-
-      - name: 🐳 Set up Docker Buildx
-        id: builder
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🗝️ Authenticate Docker to Google Cloud
-        uses: docker/login-action@v3
-        with:
-          registry: us-central1-docker.pkg.dev
-          username: oauth2accesstoken
-          password: ${{ steps.auth.outputs.access_token }}
-
-      - name: 🏷️ Extract tags from GitHub
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: us-central1-docker.pkg.dev/${{ secrets.PROJECT_ID }}/images/app
-          tags: |
-            type=ref,suffix=-{{sha}},event=branch
-            type=ref,prefix=pr-,suffix=-{{sha}},event=pr
-            type=semver,pattern={{version}}
-            type=raw,value=latest
-
-      - name: 📦 Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          builder: ${{ steps.builder.outputs.name }}
-          tags: ${{ steps.meta.outputs.tags }}
-          provenance: false
-          context: .
-          push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 🔍️ Set Image Name
-        run: |
-          IMAGE_ID=$(echo $DOCKER_METADATA_OUTPUT_TAGS | cut -d ' ' -f 1)
-          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
-
-      - name: 🚀 Deploy to Cloud Run
-        id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: app
-          image: ${{ env.IMAGE_ID }}
-          region: us-west3
-          flags: |
-            --service-account=cloud-run-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com
-            --vpc-connector=${{ secrets.VPC }}
-            --vpc-egress=all-traffic
-            --max-instances=1
-            --concurrency=1
-            --cpu=1
-            --memory=512Mi
-            --timeout=30m
-          env_vars: LOG_LEVEL=INFO
-          secrets: |
-            /secrets/db/connection=database-connections:latest
-
-      - name: 🕰️ Create cloud scheduler
-        run: |
-          if [ ! "$(gcloud scheduler jobs list --location=us-west3 | grep app)" ]; then
-            gcloud scheduler jobs create http app \
-              --description="Trigger the app bot once a week on monday morning" \
-              --schedule="0 0 * * *" \
-              --time-zone=America/Denver \
-              --uri=$(gcloud run services describe app --region us-west3 --format 'value(status.url)')/scheduled \
-              --http-method=POST \
-              --max-retry-attempts=0 \
-              --min-backoff=30m \
-              --max-backoff=1h \
-              --max-doublings=1 \
-              --attempt-deadline=30m \
-              --oidc-service-account-email=cloud-scheduler-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com \
-              --location=us-west3 \
-              --quiet
-          else
-            gcloud scheduler jobs update http app \
-              --description="Trigger the app bot once a week on monday morning" \
-              --schedule="0 0 * * *" \
-              --time-zone=America/Denver \
-              --uri=$(gcloud run services describe app --region us-west3 --format 'value(status.url)')/scheduled \
-              --http-method=POST \
-              --max-retry-attempts=0 \
-              --min-backoff=30m \
-              --max-backoff=1h \
-              --max-doublings=1 \
-              --attempt-deadline=30m \
-              --oidc-service-account-email=cloud-scheduler-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com \
-              --location=us-west3 \
-              --quiet
-          fi
+          release-type: python
+          prerelease: ${{ github.ref_name == 'dev' }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          github-app-id: ${{ secrets.UGRC_RELEASE_BOT_APP_ID }}
+          github-app-key: ${{ secrets.UGRC_RELEASE_BOT_APP_KEY }}
+          github-app-name: ${{ secrets.UGRC_RELEASE_BOT_NAME }}
+          github-app-email: ${{ secrets.UGRC_RELEASE_BOT_EMAIL }}
