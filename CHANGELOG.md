@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/agrc/open-sgid/compare/v1.0.0...v1.0.1) (2025-01-01)
+
+
+### Dependencies
+
+* **dev:** update pytest-cov requirement ([e2e5ff8](https://github.com/agrc/open-sgid/commit/e2e5ff81ef028ed98f20fd7b35b5ec0914614856))
+
 ## 1.0.0 (2024-10-15)
 
 
