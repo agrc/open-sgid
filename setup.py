@@ -44,7 +44,7 @@ setup(
         "cloud-run": [
             "flask==3.*",
             "gunicorn==23.*",
-            "google-cloud-storage==2.*",
+            "google-cloud-storage==3.*",
         ],
         "tests": [
             "pytest-cov==6.*",
