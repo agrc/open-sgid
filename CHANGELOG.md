@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/agrc/open-sgid/compare/v1.0.2...v1.0.3) (2025-08-21)
+
+
+### Bug Fixes
+
+* add logging around last checked date ([64a0e9d](https://github.com/agrc/open-sgid/commit/64a0e9dc53d40dde83ecd21c87765b7110f75036))
+
 ## [1.0.2](https://github.com/agrc/open-sgid/compare/v1.0.1...v1.0.2) (2025-08-21)
 
 
