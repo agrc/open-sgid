@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.6](https://github.com/agrc/open-sgid/compare/v1.0.5...v1.0.6) (2025-08-21)
+
+
+### Bug Fixes
+
+* remove newlines from text ([59093db](https://github.com/agrc/open-sgid/commit/59093db57e637079757a5bb7d98c8e92ba676091))
+
 ## [1.0.5](https://github.com/agrc/open-sgid/compare/v1.0.4...v1.0.5) (2025-08-21)
 
 
