@@ -38,7 +38,7 @@ def schedule():
 
         logging.info("completed in %s", utils.format_time(perf_counter() - trim_seconds))
     except Exception as error:
-        logging.error("trim failure %s", error)
+        logging.error("trim failure %s", error, exc_info=True)
         has_errors.append(error)
 
     try:
@@ -51,7 +51,7 @@ def schedule():
         logging.info("completed in %s", utils.format_time(perf_counter() - import_seconds))
 
     except Exception as error:
-        logging.error("app failure %s", error)
+        logging.error("app failure %s", error, exc_info=True)
         has_errors.append(error)
 
     try:
@@ -62,7 +62,7 @@ def schedule():
 
         logging.info("completed in %s", utils.format_time(perf_counter() - update_seconds))
     except Exception as error:
-        logging.error("app failure %s", error)
+        logging.error("app failure %s", error, exc_info=True)
         has_errors.append(error)
 
     if len(has_errors) > 0:
