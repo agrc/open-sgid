@@ -19,7 +19,7 @@ Usage:
 import logging
 import sys
 from datetime import datetime
-from time import perf_counter
+from time import perf_counter, sleep
 
 import psycopg2
 import pyodbc
@@ -314,18 +314,54 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
 
     if not dry_run:
         start_seconds = perf_counter()
-        result = gdal.VectorTranslate(cloud_db, internal_sgid, options=pg_options)
-        logging.debug("- completed in %s", utils.format_time(perf_counter() - start_seconds))
+
+        # Retry logic for GDAL VectorTranslate operation
+        max_retries = 3
+        retry_delay = 5  # seconds
+        result = None
+
+        for attempt in range(max_retries):
+            try:
+                logging.debug("- attempt %d/%d for vector translate", attempt + 1, max_retries)
+                result = gdal.VectorTranslate(cloud_db, internal_sgid, options=pg_options)
+                logging.debug("- completed in %s", utils.format_time(perf_counter() - start_seconds))
+                break
+            except Exception as ex:
+                logging.warning("- vector translate attempt %d failed: %s", attempt + 1, str(ex))
+                if attempt < max_retries - 1:
+                    logging.info("- retrying in %d seconds...", retry_delay)
+                    sleep(retry_delay)
+                    retry_delay *= 2  # exponential backoff
+                else:
+                    logging.error("- all vector translate attempts failed for %s.%s", schema_name, layer)
+                    return
+
+        if result is None:
+            logging.error("- vector translate failed for %s.%s after %d attempts", schema_name, layer, max_retries)
+            return
 
         del result
 
         logging.debug("make valid")
-
         qualified_layer = f"{schema_name}.{layer}"
 
-        make_valid(qualified_layer)
-        schema.update_schema_for(internal_name, qualified_layer)
-        create_index(qualified_layer)
+        # Retry logic for database operations
+        for attempt in range(max_retries):
+            try:
+                logging.debug("- attempt %d/%d for post-processing operations", attempt + 1, max_retries)
+                make_valid(qualified_layer)
+                schema.update_schema_for(internal_name, qualified_layer)
+                create_index(qualified_layer)
+                logging.debug("- post-processing completed successfully")
+                break
+            except Exception as ex:
+                logging.warning("- post-processing attempt %d failed: %s", attempt + 1, str(ex))
+                if attempt < max_retries - 1:
+                    logging.info("- retrying post-processing in %d seconds...", retry_delay // (2 ** attempt))
+                    sleep(retry_delay // (2 ** attempt))
+                else:
+                    logging.error("- all post-processing attempts failed for %s.%s", schema_name, layer)
+                    # Don't return here - the data was already imported, just post-processing failed
 
 
 def import_data(if_not_exists, missing_only, dry_run):
