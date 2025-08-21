@@ -489,6 +489,8 @@ def read_last_check_date(gcp_bucket):
     last_date_string = None
     last_checked = gcp_bucket.get_blob(".last_checked")
 
+    logging.info("reading last check date from .last_checked: %s", last_checked)
+
     if last_checked is None:
         return None
 
