@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/agrc/open-sgid/compare/v1.0.1...v1.0.2) (2025-08-21)
+
+
+### Bug Fixes
+
+* update logging to give more details ([b11cbc7](https://github.com/agrc/open-sgid/commit/b11cbc7eb6afccdb96b957bc14b147827d90619b))
+
 ## [1.0.1](https://github.com/agrc/open-sgid/compare/v1.0.0...v1.0.1) (2025-05-14)
 
 
