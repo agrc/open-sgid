@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/agrc/open-sgid/compare/v1.0.3...v1.0.4) (2025-08-21)
+
+
+### Bug Fixes
+
+* log check text string value ([70f2511](https://github.com/agrc/open-sgid/commit/70f2511f4610000a961140d9de64f6f41d586ced))
+
 ## [1.0.3](https://github.com/agrc/open-sgid/compare/v1.0.2...v1.0.3) (2025-08-21)
 
 
