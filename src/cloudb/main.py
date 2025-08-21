@@ -525,7 +525,11 @@ def get_tables_from_change_detection():
     if last_checked is None:
         last_checked = datetime.today()
     else:
-        last_checked = datetime.strptime(last_checked, "%Y-%m-%d")
+        try:
+            last_checked = datetime.strptime(last_checked, "%Y-%m-%d")
+        except ValueError:
+            logging.error("invalid date format in .last_checked: %s", last_checked, exc_info=True)
+            last_checked = last_checked
 
     logging.info("Checking for changes since %s", last_checked)
 
