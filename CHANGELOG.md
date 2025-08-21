@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7](https://github.com/agrc/open-sgid/compare/v1.0.6...v1.0.7) (2025-08-21)
+
+
+### Bug Fixes
+
+* update database code to be more resilient ([7d945bb](https://github.com/agrc/open-sgid/commit/7d945bbeb050b844611037e07fe1489784da0594))
+
 ## [1.0.6](https://github.com/agrc/open-sgid/compare/v1.0.5...v1.0.6) (2025-08-21)
 
 
