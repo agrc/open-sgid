@@ -47,7 +47,7 @@ setup(
             "google-cloud-storage==3.*",
         ],
         "tests": [
-            "pytest-cov==6.*",
+            "pytest-cov>=6,<8",
             "pytest-instafail==0.5.*",
             "pytest-mock==3.*",
             "pytest-ruff==0.*",
