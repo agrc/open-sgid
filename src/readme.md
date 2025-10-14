@@ -45,6 +45,14 @@ cloudb import
 - `CONVERT_TO_LINEAR` will remove curves. I don't believe we have any.
 - `PROMOTE_TO_MULTI` for polygons that have multiple parts. This will upgrade them
 
+### inserting new data
+
+For data to synchronize to the Open SGID, the meta table needs a record with the following fields populated:
+
+1. TABLENAME: The full qualified table name (e.g., SGID.ENVIRONMENT.NewDataset)
+1. AGOL_PUBLISHED_NAME: The published name for PostgreSQL (e.g., "Utah New Dataset")
+1. GEOMETRY_TYPE: The geometry type (POINT, POLYGON, POLYLINE, or STAND ALONE)
+
 ## links
 
 - [gdal python docs](https://gdal.org/python/)
