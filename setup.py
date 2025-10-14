@@ -10,7 +10,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="cloudb",
-    version="1.0.7",
+    version="1.0.8",
     license="MIT",
     description="A cli to synchronize the internal sgid with the open sgid",
     long_description=(Path(__file__).parent / "src" / "readme.md").read_text(),

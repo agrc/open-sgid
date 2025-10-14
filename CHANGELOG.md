@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.8](https://github.com/agrc/open-sgid/compare/v1.0.7...v1.0.8) (2025-10-14)
+
+
+### Documentation
+
+* add required information for inserting new data ([9b1acc6](https://github.com/agrc/open-sgid/commit/9b1acc622dab5380951d8aa576224361f8856a03))
+
 ## [1.0.7](https://github.com/agrc/open-sgid/compare/v1.0.6...v1.0.7) (2025-08-21)
 
 
