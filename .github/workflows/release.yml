@@ -95,7 +95,7 @@ jobs:
         run: |
           if [ ! "$(gcloud scheduler jobs list --location=us-west3 | grep app)" ]; then
             gcloud scheduler jobs create http app \
-              --description="Trigger the app bot once a week on monday morning" \
+              --description="Trigger the app bot daily at 12 AM" \
               --schedule="0 0 * * *" \
               --time-zone=America/Denver \
               --uri=$(gcloud run services describe app --region us-west3 --format 'value(status.url)')/scheduled \
@@ -110,7 +110,7 @@ jobs:
               --quiet
           else
             gcloud scheduler jobs update http app \
-              --description="Trigger the app bot once a week on monday morning" \
+              --description="Trigger the app bot daily at 12 AM" \
               --schedule="0 0 * * *" \
               --time-zone=America/Denver \
               --uri=$(gcloud run services describe app --region us-west3 --format 'value(status.url)')/scheduled \
