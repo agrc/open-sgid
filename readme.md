@@ -22,7 +22,7 @@ Please read, understand, and follow the [terms of service](https://gis.utah.gov/
 | | |
 |:--|:--|
 | Database Driver | PostgresSQL |
-| Instance | opensgid.agrc.utah.gov |
+| Instance | opensgid.ugrc.utah.gov |
 | Port | 5432 |
 | Database Name | opensgid |
 | Username | agrc |
