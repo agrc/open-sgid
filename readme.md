@@ -14,8 +14,8 @@ Please read, understand, and follow the [terms of service](https://gis.utah.gov/
 
 | product | version |
 |:--|:--|
-| PostgreSQL | 13 |
-| PostGIS | 3.5 |
+| PostgreSQL | 14 |
+| PostGIS | 3.6 |
 
 ### Connection Information
 
