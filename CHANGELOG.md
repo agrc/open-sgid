@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.9](https://github.com/agrc/open-sgid/compare/v1.0.8...v1.0.9) (2026-02-17)
+
+
+### Dependencies
+
+* **dev:** update pytest requirement from ==8.* to &gt;=8,&lt;10 ([18547fc](https://github.com/agrc/open-sgid/commit/18547fc316912f0675f86515a87dd278029342a8))
+
 ## [1.0.8](https://github.com/agrc/open-sgid/compare/v1.0.7...v1.0.8) (2025-11-12)
 
 
