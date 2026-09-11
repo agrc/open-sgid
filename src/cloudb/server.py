@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# * coding: utf8 *
 """
 server.py
 a module that can receive web requests. this will be google cloud pub sub and

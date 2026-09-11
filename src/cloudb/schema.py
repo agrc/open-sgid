@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# * coding: utf8 *
 """
 schema.py
 A module that modifies schemas
@@ -123,16 +121,15 @@ ORDER BY
                     f"ALTER COLUMN {column} TYPE {data_type} USING {column}::{data_type}"
                 )
 
-    with psycopg2.connect(**config.DBO_CONNECTION) as conn:
-        with conn.cursor() as cursor:
-            for table, alter_column_statements in alter_statements.items():
-                sql = f'ALTER TABLE {table} {", ".join(alter_column_statements)};'
+    with psycopg2.connect(**config.DBO_CONNECTION) as conn, conn.cursor() as cursor:
+        for table, alter_column_statements in alter_statements.items():
+            sql = f'ALTER TABLE {table} {", ".join(alter_column_statements)};'
 
-                logging.debug("updating schema for %s with %s", table, sql)
-
-                if not dry_run:
-                    result = cursor.execute(sql)
-                    logging.debug("result: %s", result)
+            logging.debug("updating schema for %s with %s", table, sql)
 
             if not dry_run:
-                conn.commit()
+                result = cursor.execute(sql)
+                logging.debug("result: %s", result)
+
+        if not dry_run:
+            conn.commit()

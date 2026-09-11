@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# * coding: utf8 *
 """
 roles.py
 A module that allows for role modifications
@@ -18,34 +16,33 @@ def create_read_only_user(schemas):
 
     logging.info("creating read only role")
 
-    with psycopg2.connect(**config.DBO_CONNECTION) as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname='read_only'")
-            role = cursor.fetchone()
+    with psycopg2.connect(**config.DBO_CONNECTION) as conn, conn.cursor() as cursor:
+        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname='read_only'")
+        role = cursor.fetchone()
 
-            if role is None or role[0] != 1:
-                sql = dedent(
-                    f"""
-                        CREATE ROLE read_only WITH
-                        NOSUPERUSER
-                        NOCREATEDB
-                        NOCREATEROLE
-                        NOINHERIT
-                        NOLOGIN
-                        NOREPLICATION
-                        VALID UNTIL 'infinity';
+        if role is None or role[0] != 1:
+            sql = dedent(
+                f"""
+                    CREATE ROLE read_only WITH
+                    NOSUPERUSER
+                    NOCREATEDB
+                    NOCREATEROLE
+                    NOINHERIT
+                    NOLOGIN
+                    NOREPLICATION
+                    VALID UNTIL 'infinity';
 
-                        -- grant privileges
+                    -- grant privileges
 
-                        GRANT CONNECT ON DATABASE {config.DB} TO read_only;
-                        GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO read_only;
-                        GRANT USAGE ON SCHEMA public TO read_only;
-                        """
-                )
+                    GRANT CONNECT ON DATABASE {config.DB} TO read_only;
+                    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO read_only;
+                    GRANT USAGE ON SCHEMA public TO read_only;
+                    """
+            )
 
-                execute_sql(sql, config.DBO_CONNECTION)
+            execute_sql(sql, config.DBO_CONNECTION)
 
-            conn.commit()
+        conn.commit()
 
     sql = []
 
