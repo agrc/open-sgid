@@ -597,10 +597,6 @@ def make_valid(layer):
     """update invalid shapes in postgres"""
     sql = f"UPDATE {layer} SET shape = ST_MakeValid(shape) WHERE ST_IsValid(shape) = false;"
 
-    unfixable_layers = ["utilities.broadband_service"]
-    if layer in unfixable_layers:
-        return
-
     try:
         execute_sql(sql, config.DBO_CONNECTION)
     except psycopg2.errors.UndefinedColumn:
