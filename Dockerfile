@@ -39,6 +39,6 @@ RUN apt-get update && apt install -y apt-utils
 RUN ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
   msodbcsql17 && apt-get clean
 
-RUN pip install .[cloud-run]
+RUN pip install .
 
 CMD ["cloudb", "sync"]
