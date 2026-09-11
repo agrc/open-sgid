@@ -37,7 +37,8 @@ def execute_sql(sql, connection):
     sql: string T-SQL
     connection: dict with connection information
     """
-    logger.debug("  executing %s", sql)
+    statement_count = len([s for s in sql.split(";") if s.strip()])
+    logger.debug("  executing SQL statement(s): count=%d", statement_count)
 
     with psycopg2.connect(**connection) as conn:
         with conn.cursor() as cursor:
