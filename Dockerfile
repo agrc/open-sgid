@@ -1,4 +1,4 @@
-FROM ghcr.io/osgeo/gdal:ubuntu-full-3.8.5
+FROM ghcr.io/osgeo/gdal:ubuntu-full-3.12.4
 
 RUN chmod +rwx /etc/ssl/openssl.cnf
 RUN sed -i 's/TLSv1.2/TLSv1/g' /etc/ssl/openssl.cnf
@@ -41,4 +41,4 @@ RUN ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
 
 RUN pip install .[cloud-run]
 
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 cloudb.server:app
+CMD ["sh", "-c", "exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 cloudb.server:app"]
