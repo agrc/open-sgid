@@ -12,7 +12,7 @@ A cli tool for taking spatial data from MSSQL and pushing it to PostGIS.
 1. install the requirements
    - `conda install -c conda-forge gdal`
    - `pip install -e .`
-   - for development `pip install -e ."[dev]"`
+   - for development `pip install -e ".[dev]"`
 1. remove `.template` from `./src/cloudb/secrets/db/connection.template` and add the proper values
 1. execute cli commands
    - `cloudb`
