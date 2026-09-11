@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# * coding: utf8 *
 """
 index - A module that creates sql indexes
 """

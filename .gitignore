@@ -125,3 +125,5 @@ dmypy.json
 # secrets
 src/.last_checked
 src/cloudb/secrets/db/connection
+
+cov.xml
