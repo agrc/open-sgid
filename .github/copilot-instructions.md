@@ -2,21 +2,20 @@
 
 ## Repository overview
 
-Open SGID is a small Python `src`-layout package. The `cloudb` CLI synchronizes spatial data from the internal MSSQL SGID into the public PostgreSQL/PostGIS Open SGID mirror. GDAL/OGR performs the spatial transfer; PostgreSQL 14 and PostGIS 3.6 are the documented target database versions. Production runs in Cloud Run behind the Flask `/scheduled` endpoint.
+Open SGID is a small Python `src`-layout package. The `cloudb` CLI synchronizes spatial data from the internal MSSQL SGID into the public PostgreSQL/PostGIS Open SGID mirror. GDAL/OGR performs the spatial transfer; PostgreSQL 14 and PostGIS 3.6 are the documented target database versions. Production runs as a single-task Cloud Run Job invoked by Cloud Scheduler.
 
 Important runtime dependencies are GDAL 3.x, Microsoft ODBC Driver 17 for SQL Server, UnixODBC, `pyodbc`, `psycopg2`, and Google Cloud Storage. The package has no lockfile and does not declare a Python version. Do not assume a database, MSSQL source, Cloud SQL credentials, GCP access, or Secret Manager access is available in a development checkout.
 
 ## Layout and ownership
 
 - `src/cloudb/main.py`: CLI grammar and synchronization logic: import, update, trim, schema updates, change detection, GDAL setup, and geometry repair. It imports GDAL, ODBC, PostgreSQL, and Google Cloud libraries at module load.
-- `src/cloudb/server.py`: Flask app and POST `/scheduled` handler used by Cloud Scheduler.
 - `src/cloudb/config.py`: loads JSON secrets from `/secrets/db/connection` in Cloud Run or `src/cloudb/secrets/db/connection` locally; defines schemas, connections, exclusions, and EPSG:26912 projection.
 - `src/cloudb/schema.py` and `src/cloudb/roles.py`: database schema/type and role/privilege operations.
 - `src/cloudb/index.py`: hardcoded index definitions; `tests/test_index.py` checks the count of index groups.
 - `src/cloudb/__init__.py`: SQL helper, logging, and connection-table cache. `src/cloudb/utils.py`: small utility helpers.
 - `setup.py`: package metadata, dependencies, `cloudb = cloudb.main:main` entry point, and `tests`/`cloud-run` extras. `pyproject.toml`: Ruff/Black line length 120 and pytest configuration.
-- `Dockerfile`: production image based on `ghcr.io/osgeo/gdal:ubuntu-full-3.12.4`; installs Python, UnixODBC, Microsoft ODBC Driver 17, and the `cloud-run` extra, then runs Gunicorn.
-- `src/readme.md`: local installation and operational CLI documentation. `readme.md`: Open SGID overview, terms of service, and database version information. `AI_ATTESTATION.md`: AI-use attestation. `CHANGELOG.md`: release history.
+- `Dockerfile`: production image based on `ghcr.io/osgeo/gdal:ubuntu-full-3.12.4`; installs Python, UnixODBC, Microsoft ODBC Driver 17, and the `cloud-run` extra, then runs `cloudb sync`.
+- `src/readme.md`: local installation and operational CLI documentation. `readme.md`: Open SGID overview, terms of service, and database version information. `AI_ATTESTATION.md`: AI-use attestation. `CHANGELOG.md`: auto-generated release history; never edit it manually.
 
 Root-level support files include `.dockerignore`, `.editorconfig`, `.gitignore`, `.gitattributes`, `cov.xml`, `LICENSE`, and `bh-set-envvars.sh`. The shell script only prepares architecture/compiler environment variables; it is not the build or test entry point.
 
@@ -47,13 +46,7 @@ For a lint-only check, run `ruff check .`. For a dependency-free syntax check, r
 
 Do not run database-changing CLI commands as validation. They require a real JSON connection file and can overwrite or alter production-like data. The CLI supports `--dry-run` for applicable import/update/trim/schema operations, but even dry runs require appropriate connections. Never print, commit, or copy credentials from either the local secret file or the root README.
 
-The local server is only a smoke/demo process and needs secrets and external databases:
-
-```sh
-python -m cloudb.server        # listens on 127.0.0.1:8080, or $PORT
-```
-
-The container path is production-oriented and requires Docker, network access, GCP credentials for deployment, and database secrets. Build locally with `docker build -t cloudb .`; do not push or deploy from an agent task unless explicitly requested. The image command is `gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 cloudb.server:app`.
+The container path is production-oriented and requires Docker, network access, GCP credentials for deployment, and database secrets. Build locally with `docker build -t cloudb .`; do not push or deploy from an agent task unless explicitly requested. The image command is `cloudb sync`.
 
 ## CI/CD and change discipline
 
@@ -62,5 +55,7 @@ The container path is production-oriented and requires Docker, network access, G
 - `.github/dependabot.yml` updates pip, GitHub Actions, and Docker dependencies quarterly with grouped updates and cooldowns.
 
 Changes affecting imports, SQL, schemas, roles, geometry, change detection, or scheduling have integration risk not covered by the single unit test. Prefer small, testable changes and add focused tests that do not require external databases. Preserve the existing `src` layout, 120-character formatting convention, and public CLI/API behavior unless the task explicitly changes them. Review SQL identifier handling, transaction boundaries, checkpoint updates, and HTTP failure status carefully because these are operationally significant.
+
+Do not edit `CHANGELOG.md`. It is auto-generated by the release process; record user-facing changes in the appropriate source documentation or release metadata instead.
 
 Before finishing, run the strongest available checks in this order: install the tests extra, `pytest`, `ruff check .` if needed for diagnosis, and `python -m compileall -q src tests`. Inspect the diff and ensure no secrets, generated artifacts, or unrelated files changed. Trust these instructions and use repository search only when a stated detail is incomplete or proves inaccurate.

@@ -71,56 +71,50 @@ jobs:
           IMAGE_ID=$(echo $DOCKER_METADATA_OUTPUT_TAGS | cut -d ' ' -f 1)
           echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
 
-      - name: 🚀 Deploy to Cloud Run
-        id: deploy
+      - name: 🚀 Deploy Cloud Run Job
         uses: google-github-actions/deploy-cloudrun@v3
         with:
-          service: app
+          job: cloudb
           image: ${{ env.IMAGE_ID }}
           region: us-west3
           flags: |
+            --tasks=1
+            --parallelism=1
+            --max-retries=3
+            --task-timeout=30m
             --service-account=cloud-run-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com
             --vpc-connector=${{ secrets.VPC }}
             --vpc-egress=all-traffic
-            --max-instances=1
-            --concurrency=1
             --cpu=1
             --memory=512Mi
-            --timeout=30m
           env_vars: LOG_LEVEL=INFO
           secrets: |
             /secrets/db/connection=database-connections:latest
 
       - name: 🕰️ Create cloud scheduler
         run: |
-          if [ ! "$(gcloud scheduler jobs list --location=us-west3 | grep app)" ]; then
-            gcloud scheduler jobs create http app \
-              --description="Trigger the app bot daily at 12 AM" \
+          SCHEDULE_URI="https://run.googleapis.com/v2/projects/${{ secrets.PROJECT_ID }}/locations/us-west3/jobs/cloudb:run"
+
+          if gcloud scheduler jobs describe cloudb --location=us-west3 >/dev/null 2>&1; then
+            gcloud scheduler jobs update http cloudb \
+              --description="Execute the cloudb Cloud Run Job daily at 12 AM" \
               --schedule="0 0 * * *" \
               --time-zone=America/Denver \
-              --uri=$(gcloud run services describe app --region us-west3 --format 'value(status.url)')/scheduled \
+              --uri="$SCHEDULE_URI" \
               --http-method=POST \
               --max-retry-attempts=0 \
-              --min-backoff=30m \
-              --max-backoff=1h \
-              --max-doublings=1 \
-              --attempt-deadline=30m \
-              --oidc-service-account-email=cloud-scheduler-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com \
+              --oauth-service-account-email=cloud-scheduler-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com \
               --location=us-west3 \
               --quiet
           else
-            gcloud scheduler jobs update http app \
-              --description="Trigger the app bot daily at 12 AM" \
+            gcloud scheduler jobs create http cloudb \
+              --description="Execute the cloudb Cloud Run Job daily at 12 AM" \
               --schedule="0 0 * * *" \
               --time-zone=America/Denver \
-              --uri=$(gcloud run services describe app --region us-west3 --format 'value(status.url)')/scheduled \
+              --uri="$SCHEDULE_URI" \
               --http-method=POST \
               --max-retry-attempts=0 \
-              --min-backoff=30m \
-              --max-backoff=1h \
-              --max-doublings=1 \
-              --attempt-deadline=30m \
-              --oidc-service-account-email=cloud-scheduler-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com \
+              --oauth-service-account-email=cloud-scheduler-sa@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com \
               --location=us-west3 \
               --quiet
           fi

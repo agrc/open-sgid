@@ -41,4 +41,4 @@ RUN ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
 
 RUN pip install .[cloud-run]
 
-CMD ["sh", "-c", "exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 cloudb.server:app"]
+CMD ["cloudb", "sync"]
