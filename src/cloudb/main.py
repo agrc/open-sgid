@@ -190,6 +190,10 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
                 continue
 
             table_parts = _get_schema_table_name_map(name)
+
+            if table_parts["schema"].startswith(("pg_temp_", "pg_toast_temp_")):
+                continue
+
             name = f"{table_parts['schema']}.{table_parts['table_name']}"
 
             if table_parts["schema"] in skip_schema:
