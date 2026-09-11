@@ -10,11 +10,13 @@ import psycopg2
 
 from . import config, execute_sql
 
+logger = logging.getLogger(__name__)
+
 
 def create_read_only_user(schemas):
     """create public user"""
 
-    logging.info("creating read only role")
+    logger.info("creating read only role")
 
     with psycopg2.connect(**config.DBO_CONNECTION) as conn, conn.cursor() as cursor:
         cursor.execute("SELECT 1 FROM pg_roles WHERE rolname='read_only'")
@@ -56,7 +58,7 @@ def create_read_only_user(schemas):
 
     execute_sql(";".join(sql), config.DBO_CONNECTION)
 
-    logging.info("adding agrc user to read only role")
+    logger.info("adding agrc user to read only role")
 
     sql = dedent(
         """

@@ -8,6 +8,9 @@ from os import getenv
 from sys import stdout
 
 import psycopg2
+from google.cloud.logging.handlers import StructuredLogHandler
+
+logger = logging.getLogger(__name__)
 
 CONNECTION_TABLE_CACHE = {}
 
@@ -25,12 +28,8 @@ elif level == "ERROR":
 elif level == "CRITICAL":
     log_level = logging.CRITICAL
 
-logging.basicConfig(
-    stream=stdout,
-    format="%(levelname)-7s %(asctime)s %(module)10s:%(lineno)5s %(message)s",
-    datefmt="%m-%d %H:%M:%S",
-    level=log_level,
-)
+stream_handler = StructuredLogHandler(stream=stdout)
+logging.basicConfig(handlers=[stream_handler], level=log_level)
 
 
 def execute_sql(sql, connection):
@@ -38,7 +37,7 @@ def execute_sql(sql, connection):
     sql: string T-SQL
     connection: dict with connection information
     """
-    logging.debug("  executing %s", sql)
+    logger.debug("  executing %s", sql)
 
     with psycopg2.connect(**connection) as conn:
         with conn.cursor() as cursor:

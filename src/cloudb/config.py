@@ -7,19 +7,25 @@ import logging
 from pathlib import Path
 from textwrap import dedent
 
+logger = logging.getLogger(__name__)
+
+class ConfigurationError(Exception):
+    """Raised when required application configuration is unavailable."""
+
+
 secrets_file = Path("/secrets/db/connection")
 local_secrets_file = Path(__file__).parent / "secrets" / "db" / "connection"
 secrets = {}
 
 if secrets_file.exists():
-    logging.debug("loading secrets from %s", secrets_file)
+    logger.debug("loading secrets from %s", secrets_file)
     secrets = json.loads(secrets_file.read_text(encoding="utf-8"))
 elif local_secrets_file.exists():
-    logging.debug("loading secrets from %s", local_secrets_file)
+    logger.debug("loading secrets from %s", local_secrets_file)
     secrets = json.loads(local_secrets_file.read_text(encoding="utf-8"))
 else:
-    logging.critical("no secrets file found")
-    raise Exception("no secrets file found")
+    logger.critical("no secrets file found")
+    raise ConfigurationError("no secrets file found")
 
 SCHEMAS = [
     "bioscience",

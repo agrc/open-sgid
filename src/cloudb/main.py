@@ -17,7 +17,7 @@ Usage:
 
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from time import perf_counter, sleep
 
 import psycopg2
@@ -28,6 +28,8 @@ from osgeo import gdal, ogr
 
 from . import CONNECTION_TABLE_CACHE, config, execute_sql, roles, schema, utils
 from .index import INDEXES
+
+logger = logging.getLogger(__name__)
 
 gdal.SetConfigOption("MSSQLSPATIAL_LIST_ALL_TABLES", "YES")
 gdal.SetConfigOption("PG_LIST_ALL_TABLES", "YES")
@@ -40,7 +42,7 @@ def enable_extensions():
     """enable the database extension
     owner: string db owner
     """
-    logging.info("enabling extensions")
+    logger.info("enabling extensions")
 
     execute_sql("CREATE EXTENSION postgis;CREATE EXTENSION pg_stat_statements;", config.DBO_CONNECTION)
 
@@ -55,17 +57,17 @@ def _get_tables_with_fields(connection_string, specific_tables):
     filter_tables = False
 
     if specific_tables and len(specific_tables) > 0:
-        logging.debug("filtering for specific tables")
+        logger.debug("filtering for specific tables")
 
         filter_tables = True
 
-    logging.debug("connecting to database")
+    logger.debug("connecting to database")
     connection = gdal.OpenEx(connection_string)
 
-    logging.debug("getting layer count")
+    logger.debug("getting layer count")
     table_count = connection.GetLayerCount()
 
-    logging.info("discovered %s tables", table_count)
+    logger.info("discovered %s tables", table_count)
 
     for table_index in range(table_count):
         qualified_layer = connection.GetLayerByIndex(table_index)
@@ -73,10 +75,10 @@ def _get_tables_with_fields(connection_string, specific_tables):
         schema_name = schema_name.lower()
         layer = layer.lower()
 
-        logging.debug("- %s.%s", schema_name, layer)
+        logger.debug("- %s.%s", schema_name, layer)
 
         if schema_name in config.EXCLUDE_SCHEMAS or filter_tables and f"{schema_name}.{layer}" not in specific_tables:
-            logging.debug(" - skipping: %s", schema_name)
+            logger.debug(" - skipping: %s", schema_name)
 
             continue
 
@@ -89,7 +91,7 @@ def _get_tables_with_fields(connection_string, specific_tables):
             field_name = field.GetName().lower()
 
             if field_name in config.EXCLUDE_FIELDS:
-                logging.debug("  - skipping: %s", field_name)
+                logger.debug("  - skipping: %s", field_name)
 
                 continue
 
@@ -104,7 +106,7 @@ def _get_tables_with_fields(connection_string, specific_tables):
     if schema_map_count == 1:
         noun = "table"
 
-    logging.info("planning to import %s %s", schema_map_count, noun)
+    logger.info("planning to import %s %s", schema_map_count, noun)
     layer_schema_map.sort(key=lambda items: items[0])
 
     connection = None
@@ -133,7 +135,7 @@ def _format_title_for_pg(title):
     new_title = title.lower()
     new_title = new_title.replace("utah ", "", 1).replace(" ", "_")
 
-    logging.debug("updating %s to %s", title, new_title)
+    logger.debug("updating %s to %s", title, new_title)
 
     return new_title
 
@@ -167,14 +169,14 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
     name_map: is a dictionary to replace names from the meta table
     """
     skip_schema = ["meta", "sde"]
-    logging.debug("connecting to database")
+    logger.debug("connecting to database")
     #: gdal.open gave a 0 table count
     connection = ogr.Open(connection_string)
 
-    logging.debug("getting layer count")
+    logger.debug("getting layer count")
     table_count = connection.GetLayerCount()
 
-    logging.debug("found %s total tables for cache", table_count)
+    logger.debug("found %s total tables for cache", table_count)
     CONNECTION_TABLE_CACHE.setdefault(connection_string, [])
 
     for table_index in range(table_count):
@@ -183,7 +185,7 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
 
         if qualified_layer:
             name = qualified_layer.GetName()
-            logging.debug("qualified layer name: %s", name)
+            logger.debug("qualified layer name: %s", name)
 
             if "." not in name:
                 continue
@@ -198,7 +200,7 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
             if table_parts["schema"] in skip_schema:
                 continue
 
-            if pgify:
+            if pgify and name_map is not None:
                 pg_title = _format_title_for_pg(table_parts["table_name"])
                 schema_name = table_parts["schema"]
 
@@ -209,11 +211,10 @@ def _populate_table_cache(connection_string, pgify=False, name_map=None):
 
                 name = f"{schema_name}.{table}"
 
-            logging.debug("found layer: %s", name)
+            logger.debug("found layer: %s", name)
 
             CONNECTION_TABLE_CACHE[connection_string].append(name)
 
-    del qualified_layer
     connection = None
 
 
@@ -224,21 +225,21 @@ def _check_if_exists(connection_string, schema_name, table, agol_meta_map):
     table: string table name
     returns: bool
     """
-    logging.debug("checking cache")
+    logger.debug("checking cache")
 
     if schema_name in agol_meta_map and table in agol_meta_map[schema_name]:
         table, _ = agol_meta_map[schema_name][table].values()
 
     if connection_string in CONNECTION_TABLE_CACHE and len(CONNECTION_TABLE_CACHE[connection_string]) > 0:
-        logging.debug("cache hit")
+        logger.debug("cache hit")
 
         return f"{schema_name}.{table}" in CONNECTION_TABLE_CACHE[connection_string]
 
-    logging.debug("cache miss")
+    logger.debug("cache miss")
     _populate_table_cache(connection_string)
 
     found = False
-    if f"{schema}.{table}" in CONNECTION_TABLE_CACHE[connection_string]:
+    if f"{schema_name}.{table}" in CONNECTION_TABLE_CACHE[connection_string]:
         found = True
 
     return found
@@ -298,7 +299,7 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
             options.append("-nlt")
             options.append(geometry_type)
     else:
-        logging.info("- skipping %s since it is no longer in the meta table", layer)
+        logger.info("- skipping %s since it is no longer in the meta table", layer)
 
         return
 
@@ -308,12 +309,12 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
     pg_options = None
     try:
         pg_options = gdal.VectorTranslateOptions(options=options)
-    except Exception:
-        logging.fatal("- invalid options for %s", layer)
+    except RuntimeError:
+        logger.fatal("- invalid options for %s", layer)
         return
 
-    logging.info("- inserting %s into %s as %s", layer, schema_name, geometry_type)
-    logging.debug("with %s", sql)
+    logger.info("- inserting %s into %s as %s", layer, schema_name, geometry_type)
+    logger.debug("with %s", sql)
 
     if not dry_run:
         start_seconds = perf_counter()
@@ -325,45 +326,45 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
 
         for attempt in range(max_retries):
             try:
-                logging.debug("- attempt %d/%d for vector translate", attempt + 1, max_retries)
+                logger.debug("- attempt %d/%d for vector translate", attempt + 1, max_retries)
                 result = gdal.VectorTranslate(cloud_db, internal_sgid, options=pg_options)
-                logging.debug("- completed in %s", utils.format_time(perf_counter() - start_seconds))
+                logger.debug("- completed in %s", utils.format_time(perf_counter() - start_seconds))
                 break
-            except Exception as ex:
-                logging.warning("- vector translate attempt %d failed: %s", attempt + 1, str(ex))
+            except RuntimeError as ex:
+                logger.warning("- vector translate attempt %d failed: %s", attempt + 1, str(ex))
                 if attempt < max_retries - 1:
-                    logging.info("- retrying in %d seconds...", retry_delay)
+                    logger.info("- retrying in %d seconds...", retry_delay)
                     sleep(retry_delay)
                     retry_delay *= 2  # exponential backoff
                 else:
-                    logging.error("- all vector translate attempts failed for %s.%s", schema_name, layer)
+                    logger.error("- all vector translate attempts failed for %s.%s", schema_name, layer)
                     return
 
         if result is None:
-            logging.error("- vector translate failed for %s.%s after %d attempts", schema_name, layer, max_retries)
+            logger.error("- vector translate failed for %s.%s after %d attempts", schema_name, layer, max_retries)
             return
 
         del result
 
-        logging.debug("make valid")
+        logger.debug("make valid")
         qualified_layer = f"{schema_name}.{layer}"
 
         # Retry logic for database operations
         for attempt in range(max_retries):
             try:
-                logging.debug("- attempt %d/%d for post-processing operations", attempt + 1, max_retries)
+                logger.debug("- attempt %d/%d for post-processing operations", attempt + 1, max_retries)
                 make_valid(qualified_layer)
                 schema.update_schema_for(internal_name, qualified_layer)
                 create_index(qualified_layer)
-                logging.debug("- post-processing completed successfully")
+                logger.debug("- post-processing completed successfully")
                 break
-            except Exception as ex:
-                logging.warning("- post-processing attempt %d failed: %s", attempt + 1, str(ex))
+            except (RuntimeError, psycopg2.Error) as ex:
+                logger.warning("- post-processing attempt %d failed: %s", attempt + 1, str(ex))
                 if attempt < max_retries - 1:
-                    logging.info("- retrying post-processing in %d seconds...", retry_delay // (2 ** attempt))
+                    logger.info("- retrying post-processing in %d seconds...", retry_delay // (2 ** attempt))
                     sleep(retry_delay // (2 ** attempt))
                 else:
-                    logging.error("- all post-processing attempts failed for %s.%s", schema_name, layer)
+                    logger.error("- all post-processing attempts failed for %s.%s", schema_name, layer)
                     # Don't return here - the data was already imported, just post-processing failed
 
 
@@ -373,7 +374,7 @@ def import_data(if_not_exists, missing_only, dry_run):
     dry_run: do not modify the destination
     missing_only: only import missing tables
     """
-    logging.info("importing tables missing from the source")
+    logger.info("importing tables missing from the source")
 
     cloud_db = config.format_ogr_connection(config.DBO_CONNECTION)
     internal_sgid = config.get_source_connection()
@@ -391,8 +392,8 @@ def import_data(if_not_exists, missing_only, dry_run):
             verb = "is"
             noun = "table"
 
-        logging.info("there %s %s %s in the source not in the destination", verb, table_count, noun)
-        logging.debug(",".join(tables))
+        logger.info("there %s %s %s in the source not in the destination", verb, table_count, noun)
+        logger.debug(",".join(tables))
 
         if table_count == 0:
             return
@@ -421,7 +422,7 @@ def import_data(if_not_exists, missing_only, dry_run):
 
     for schema_name, layer, fields in layer_schema_map:
         if if_not_exists and _check_if_exists(cloud_db, schema_name, layer, agol_meta_map):
-            logging.info("- skipping %s.%s already exists", schema_name, layer)
+            logger.info("- skipping %s.%s already exists", schema_name, layer)
 
             continue
 
@@ -436,14 +437,14 @@ def _get_table_sets():
     internal_sgid = config.get_source_connection()
 
     if cloud_db not in CONNECTION_TABLE_CACHE:
-        logging.debug("populating postgres table cache")
+        logger.debug("populating postgres table cache")
         _populate_table_cache(cloud_db)
-        logging.debug("finished populating postgres table cache")
+        logger.debug("finished populating postgres table cache")
 
     if internal_sgid not in CONNECTION_TABLE_CACHE:
-        logging.debug("populating mssql table cache")
+        logger.debug("populating mssql table cache")
         _populate_table_cache(internal_sgid, pgify=True, name_map=_get_table_meta())
-        logging.debug("finished populating mssql table cache")
+        logger.debug("finished populating mssql table cache")
 
     source = set(CONNECTION_TABLE_CACHE[cloud_db])
     destination = set(CONNECTION_TABLE_CACHE[internal_sgid])
@@ -457,7 +458,7 @@ def trim(dry_run):
     drop the tables in the destination found in the difference between the two sets
     """
 
-    logging.info("trimming tables that do not exist in the source")
+    logger.info("trimming tables that do not exist in the source")
 
     source, destination = _get_table_sets()
     items_to_trim = source - destination
@@ -469,8 +470,8 @@ def trim(dry_run):
         verb = "is"
         noun = "table"
 
-    logging.info("there %s %s %s in the destination not in the source", verb, items_to_trim_count, noun)
-    logging.debug(",".join(items_to_trim))
+    logger.info("there %s %s %s in the destination not in the source", verb, items_to_trim_count, noun)
+    logger.debug(",".join(items_to_trim))
 
     if items_to_trim_count == 0:
         return
@@ -481,12 +482,12 @@ def trim(dry_run):
         clean_items.append(f'{schema_part}."{table}"')
 
     sql = f'DROP TABLE {",".join(clean_items)}'
-    logging.info("dropping %s", clean_items)
+    logger.info("dropping %s", clean_items)
 
     if not dry_run:
         execute_sql(sql, config.DBO_CONNECTION)
 
-    logging.info("finished")
+    logger.info("finished")
 
 
 def update(specific_tables, dry_run):
@@ -494,26 +495,26 @@ def update(specific_tables, dry_run):
     specific_tables: a list of tables from the source without the schema
     dry_run: bool if insertion should actually happen
     """
-    logging.info("updating tables %s", ",".join(specific_tables))
+    logger.info("updating tables %s", ",".join(specific_tables))
 
     internal_sgid = config.get_source_connection()
 
     if not specific_tables or len(specific_tables) == 0:
-        logging.info(" no tables to import!")
+        logger.info(" no tables to import!")
 
         return
 
     layer_schema_map = _get_tables_with_fields(internal_sgid, specific_tables)
 
     if len(layer_schema_map) == 0:
-        logging.info(" no matching table found!")
+        logger.info(" no matching table found!")
 
         return
 
     agol_meta_map = _get_table_meta()
 
     if len(specific_tables) != len(layer_schema_map):
-        logging.warning(
+        logger.warning(
             "input %s tables but only %s found. check your spelling", len(specific_tables), len(layer_schema_map)
         )
 
@@ -534,7 +535,7 @@ def read_last_check_date(gcp_bucket):
 
     last_date_string = last_checked.download_as_text().strip()
 
-    logging.info("reading last check date from .last_checked: %s", last_date_string)
+    logger.info("reading last check date from .last_checked: %s", last_date_string)
 
     if last_date_string is None or len(last_date_string) < 1:
         return None
@@ -551,7 +552,7 @@ def update_last_check_date(gcp_bucket):
     if blob is None:
         blob = storage.Blob(".last_checked", gcp_bucket)
 
-    blob.upload_from_string(datetime.today().strftime("%Y-%m-%d"))
+    blob.upload_from_string(datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
 
 def get_tables_from_change_detection():
@@ -562,15 +563,14 @@ def get_tables_from_change_detection():
     last_checked = read_last_check_date(bucket)
 
     if last_checked is None:
-        last_checked = datetime.today()
+        last_checked = datetime.now(timezone.utc)
     else:
         try:
-            last_checked = datetime.strptime(last_checked, "%Y-%m-%d")
+            last_checked = datetime.strptime(last_checked, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         except ValueError:
-            logging.error("invalid date format in .last_checked: %s", last_checked, exc_info=True)
-            last_checked = last_checked
+            logger.exception("invalid date format in .last_checked: %s", last_checked)
 
-    logging.info("Checking for changes since %s", last_checked)
+    logger.info("Checking for changes since %s", last_checked)
 
     updated_tables = []
     with pyodbc.connect(config.get_source_connection()[6:]) as connection:
@@ -610,12 +610,12 @@ def create_index(layer):
     if layer.lower() not in INDEXES:
         return
 
-    logging.debug("- adding index")
+    logger.debug("- adding index")
     for sql in INDEXES[layer]:
         try:
             execute_sql(sql, config.DBO_CONNECTION)
-        except Exception as ex:
-            logging.warning("- failed running: %s%s", sql, ex)
+        except psycopg2.Error as ex:
+            logger.warning("- failed running: %s%s", sql, ex)
 
 
 def sync(dry_run=False):
@@ -626,34 +626,34 @@ def sync(dry_run=False):
     try:
         trim_seconds = perf_counter()
         trim(dry_run)
-        logging.info("trim completed in %s", utils.format_time(perf_counter() - trim_seconds))
+        logger.info("trim completed in %s", utils.format_time(perf_counter() - trim_seconds))
     except Exception as error:
-        logging.error("trim failure %s", error, exc_info=True)
+        logger.exception("trim failure")
         has_errors.append(error)
 
     try:
         import_seconds = perf_counter()
         import_data(False, True, dry_run)
-        logging.info("import completed in %s", utils.format_time(perf_counter() - import_seconds))
+        logger.info("import completed in %s", utils.format_time(perf_counter() - import_seconds))
     except Exception as error:
-        logging.error("import failure %s", error, exc_info=True)
+        logger.exception("import failure")
         has_errors.append(error)
 
     try:
         update_seconds = perf_counter()
         tables = get_tables_from_change_detection()
         update(tables, dry_run)
-        logging.info("update completed in %s", utils.format_time(perf_counter() - update_seconds))
+        logger.info("update completed in %s", utils.format_time(perf_counter() - update_seconds))
     except Exception as error:
-        logging.error("update failure %s", error, exc_info=True)
+        logger.exception("update failure")
         has_errors.append(error)
 
     if has_errors:
         errors = "||".join(str(error) for error in has_errors)
-        logging.error(errors)
+        logger.error(errors)
         raise RuntimeError(errors)
 
-    logging.info("successful sync completed in %s", utils.format_time(perf_counter() - total_seconds))
+    logger.info("successful sync completed in %s", utils.format_time(perf_counter() - total_seconds))
 
 
 def main():
@@ -665,73 +665,71 @@ def main():
     if args["enable"]:
         enable_extensions()
 
-        logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+        logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
         sys.exit()
 
-    if args["create"]:
-        if args["schema"]:
-            name = args["--schemas"]
+    if args["create"] and args["schema"]:
+        name = args["--schemas"]
 
-            if name is None or name == "all":
-                schema.create_schemas(config.SCHEMAS)
-                sys.exit()
+        if name is None or name == "all":
+            schema.create_schemas(config.SCHEMAS)
+            sys.exit()
 
-            name = name.lower()
+        name = name.lower()
 
-            if name in config.SCHEMAS:
-                schema.create_schemas([name])
-                sys.exit()
+        if name in config.SCHEMAS:
+            schema.create_schemas([name])
+            sys.exit()
 
-        if args["admin-user"]:
-            roles.create_admin_user(config.ADMIN)
+    if args["create"] and args["admin-user"]:
+        roles.create_admin_user(config.ADMIN)
 
-            logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+        logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+
+        sys.exit()
+
+    if args["create"] and args["read-only-user"]:
+        roles.create_read_only_user(config.SCHEMAS)
+
+        logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+
+        sys.exit()
+
+    if args["create"] and args["indexes"]:
+        for key in INDEXES:
+            create_index(key)
+
+    if args["drop"] and args["schema"]:
+        name = args["--schemas"]
+
+        if name is None or name == "all":
+            schema.drop_schemas(config.SCHEMAS)
+
+            logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
             sys.exit()
 
-        if args["read-only-user"]:
-            roles.create_read_only_user(config.SCHEMAS)
+        name = name.lower()
 
-            logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+        if name in config.SCHEMAS:
+            schema.drop_schemas([name])
+
+            logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
             sys.exit()
-
-        if args["indexes"]:
-            for key, _ in INDEXES.items():
-                create_index(key)
-
-    if args["drop"]:
-        if args["schema"]:
-            name = args["--schemas"]
-
-            if name is None or name == "all":
-                schema.drop_schemas(config.SCHEMAS)
-
-                logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
-
-                sys.exit()
-
-            name = name.lower()
-
-            if name in config.SCHEMAS:
-                schema.drop_schemas([name])
-
-                logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
-
-                sys.exit()
 
     if args["import"]:
         import_data(args["--skip-if-exists"], args["--missing"], args["--dry-run"])
 
-        logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+        logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
         sys.exit()
 
     if args["trim"]:
         trim(args["--dry-run"])
 
-        logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+        logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
         sys.exit()
 
@@ -743,14 +741,14 @@ def main():
 
         update(tables, args["--dry-run"])
 
-        logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+        logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
         sys.exit()
 
     if args["sync"]:
         sync(args["--dry-run"])
 
-        logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+        logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
         sys.exit()
 
@@ -768,11 +766,11 @@ def main():
 
                 schema.update_schema_for(sgid_table, pg_table, args["--dry-run"])
 
-        logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+            logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
         sys.exit()
 
-    logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+    logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
     sys.exit()
 
