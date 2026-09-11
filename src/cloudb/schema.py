@@ -10,6 +10,8 @@ import pyodbc
 
 from . import config
 
+logger = logging.getLogger(__name__)
+
 
 def drop_schemas(schemas):
     """drops the schemas and all tables within
@@ -21,7 +23,7 @@ def drop_schemas(schemas):
         for name in schemas:
             sql.append(f"DROP SCHEMA {name} CASCADE")
 
-        logging.info("dropping schema for %s", sql)
+        logger.info("dropping schema for %s", sql)
         with conn.cursor() as cursor:
             cursor.execute(";".join(sql))
 
@@ -40,7 +42,7 @@ def create_schemas(schemas):
             sql.append(f'GRANT ALL ON SCHEMA {name} TO {config.ADMIN["name"]}')
             sql.append(f"GRANT USAGE ON SCHEMA {name} TO public")
 
-        logging.info("creating schemas for %s", sql)
+        logger.info("creating schemas for %s", sql)
         with conn.cursor() as cursor:
             cursor.execute(";".join(sql))
 
@@ -69,18 +71,18 @@ WHERE
                 statements.append(f"ALTER COLUMN {column} TYPE {data_type} USING {column}::{data_type}")
 
     if len(statements) < 1:
-        logging.debug("skipping %s", pg_table)
+        logger.debug("skipping %s", pg_table)
 
         return
 
     with psycopg2.connect(**config.DBO_CONNECTION) as conn:
         with conn.cursor() as cursor:
             sql = f'ALTER TABLE {pg_table} {", ".join(statements)};'
-            logging.debug("updating schema for %s with %s", pg_table, sql)
+            logger.debug("updating schema for %s with %s", pg_table, sql)
 
             if not dry_run:
                 result = cursor.execute(sql)
-                logging.debug("result: %s", result)
+                logger.debug("result: %s", result)
 
         if not dry_run:
             conn.commit()
@@ -125,11 +127,11 @@ ORDER BY
         for table, alter_column_statements in alter_statements.items():
             sql = f'ALTER TABLE {table} {", ".join(alter_column_statements)};'
 
-            logging.debug("updating schema for %s with %s", table, sql)
+            logger.debug("updating schema for %s with %s", table, sql)
 
             if not dry_run:
                 result = cursor.execute(sql)
-                logging.debug("result: %s", result)
+                logger.debug("result: %s", result)
 
         if not dry_run:
             conn.commit()

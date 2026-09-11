@@ -38,3 +38,25 @@ def test_sync_raises_after_running_all_stages(mocker):
     assert import_data.call_count == 1
     assert get_tables.call_count == 1
     assert update.call_count == 1
+
+
+def test_check_if_exists_returns_true_for_cached_table(mocker):
+    main.CONNECTION_TABLE_CACHE.clear()
+    main.CONNECTION_TABLE_CACHE["connection"] = ["water.rivers"]
+
+    populate_cache = mocker.patch.object(main, "_populate_table_cache")
+
+    assert main._check_if_exists("connection", "water", "rivers", {}) is True
+    populate_cache.assert_not_called()
+
+
+def test_check_if_exists_populates_cache_on_miss(mocker):
+    main.CONNECTION_TABLE_CACHE.clear()
+
+    def populate_cache(connection_string):
+        main.CONNECTION_TABLE_CACHE[connection_string] = ["water.rivers"]
+
+    populate_cache_mock = mocker.patch.object(main, "_populate_table_cache", side_effect=populate_cache)
+
+    assert main._check_if_exists("connection", "water", "rivers", {}) is True
+    populate_cache_mock.assert_called_once_with("connection")
