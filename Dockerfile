@@ -1,12 +1,8 @@
-FROM ghcr.io/osgeo/gdal:ubuntu-full-3.12.4
+FROM ghcr.io/osgeo/gdal:ubuntu-full-3.12.4 AS base
 
 RUN chmod +rwx /etc/ssl/openssl.cnf
 RUN sed -i 's/TLSv1.2/TLSv1/g' /etc/ssl/openssl.cnf
 RUN sed -i 's/SECLEVEL=2/SECLEVEL=1/g' /etc/ssl/openssl.cnf
-
-WORKDIR /app
-
-COPY . .
 
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
@@ -38,6 +34,20 @@ RUN apt-get update && apt install -y apt-utils
 
 RUN ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
   msodbcsql17 && apt-get clean
+
+FROM base AS test
+
+WORKDIR /app
+
+COPY . .
+
+RUN pip install -e ".[dev]"
+
+FROM base AS prod
+
+WORKDIR /app
+
+COPY . .
 
 RUN pip install .
 

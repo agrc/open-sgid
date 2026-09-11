@@ -1,0 +1,32 @@
+name: Pull Request Events
+
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up code
+        uses: actions/checkout@v6
+
+      - name: Build Docker image
+        run: docker build --target test -t cloudb:test .
+
+      - name: Lint
+        run: docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace cloudb:test ruff check --output-format=github .
+
+      - name: Run pytest
+        run: docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace cloudb:test pytest
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./cov.xml
