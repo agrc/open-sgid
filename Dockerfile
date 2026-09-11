@@ -41,7 +41,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install -e ".[dev]"
+RUN pip install --break-system-packages -e ".[dev]"
 
 FROM base AS prod
 
@@ -49,6 +49,6 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install .
+RUN pip install --break-system-packages .
 
 CMD ["cloudb", "sync"]
