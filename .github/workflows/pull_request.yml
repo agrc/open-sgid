@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Set up code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build Docker image
         run: docker build --target test -t cloudb:test .
@@ -29,7 +29,7 @@ jobs:
         run: docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace cloudb:test pytest
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cov.xml
