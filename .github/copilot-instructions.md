@@ -13,7 +13,7 @@ Important runtime dependencies are GDAL 3.x, Microsoft ODBC Driver 17 for SQL Se
 - `src/cloudb/schema.py` and `src/cloudb/roles.py`: database schema/type and role/privilege operations.
 - `src/cloudb/index.py`: hardcoded index definitions; `tests/test_index.py` checks the count of index groups.
 - `src/cloudb/__init__.py`: SQL helper, logging, and connection-table cache. `src/cloudb/utils.py`: small utility helpers.
-- `setup.py`: package metadata, dependencies, `cloudb = cloudb.main:main` entry point, and `dev` extras. `pyproject.toml`: Ruff/Black line length 120 and pytest configuration.
+- `pyproject.toml`: package metadata, dependencies, `cloudb = cloudb.main:main` entry point, `dev` extras, Ruff/Black line length 120, and pytest configuration.
 - `Dockerfile`: production image based on `ghcr.io/osgeo/gdal:ubuntu-full-3.12.4`; installs Python, UnixODBC, Microsoft ODBC Driver 17, then runs `cloudb sync`.
 - `src/readme.md`: local installation and operational CLI documentation. `readme.md`: Open SGID overview, terms of service, and database version information. `AI_ATTESTATION.md`: AI-use attestation. `CHANGELOG.md`: auto-generated release history; never edit it manually.
 

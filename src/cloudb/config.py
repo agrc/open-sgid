@@ -4,6 +4,7 @@ A module that holds configuration items
 """
 import json
 import logging
+import os
 from pathlib import Path
 from textwrap import dedent
 
@@ -13,7 +14,7 @@ class ConfigurationError(Exception):
     """Raised when required application configuration is unavailable."""
 
 
-secrets_file = Path("/secrets/db/connection")
+secrets_file = Path(os.environ.get("CLOUDB_CONFIG", "/secrets/db/connection"))
 local_secrets_file = Path(__file__).parent / "secrets" / "db" / "connection"
 secrets = {}
 
