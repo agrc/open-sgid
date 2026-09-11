@@ -301,7 +301,7 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
     else:
         logger.info("- skipping %s since it is no longer in the meta table", layer)
 
-        return
+        return True
 
     options.append("-nln")
     options.append(f"{layer}")
@@ -311,7 +311,7 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
         pg_options = gdal.VectorTranslateOptions(options=options)
     except RuntimeError:
         logger.fatal("- invalid options for %s", layer)
-        return
+        return False
 
     logger.info("- inserting %s into %s as %s", layer, schema_name, geometry_type)
     logger.debug("with %s", sql)
@@ -338,11 +338,11 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
                     retry_delay *= 2  # exponential backoff
                 else:
                     logger.error("- all vector translate attempts failed for %s.%s", schema_name, layer)
-                    return
+                    return False
 
         if result is None:
             logger.error("- vector translate failed for %s.%s after %d attempts", schema_name, layer, max_retries)
-            return
+            return False
 
         del result
 
@@ -358,14 +358,19 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
                 create_index(qualified_layer)
                 logger.debug("- post-processing completed successfully")
                 break
-            except (RuntimeError, psycopg2.Error) as ex:
+            except (RuntimeError, psycopg2.Error, pyodbc.Error) as ex:
                 logger.warning("- post-processing attempt %d failed: %s", attempt + 1, str(ex))
                 if attempt < max_retries - 1:
                     logger.info("- retrying post-processing in %d seconds...", retry_delay // (2 ** attempt))
                     sleep(retry_delay // (2 ** attempt))
                 else:
                     logger.error("- all post-processing attempts failed for %s.%s", schema_name, layer)
-                    # Don't return here - the data was already imported, just post-processing failed
+
+                    return False
+
+        return True
+
+    return True
 
 
 def import_data(if_not_exists, missing_only, dry_run):
@@ -420,13 +425,18 @@ def import_data(if_not_exists, missing_only, dry_run):
 
     layer_schema_map = _get_tables_with_fields(internal_sgid, tables)
 
+    failures = []
     for schema_name, layer, fields in layer_schema_map:
         if if_not_exists and _check_if_exists(cloud_db, schema_name, layer, agol_meta_map):
             logger.info("- skipping %s.%s already exists", schema_name, layer)
 
             continue
 
-        _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
+        if not _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
+            failures.append(f"{schema_name}.{layer}")
+
+    if failures:
+        raise RuntimeError(f"failed to import tables: {', '.join(failures)}")
 
 
 def _get_table_sets():
@@ -518,8 +528,13 @@ def update(specific_tables, dry_run):
             "input %s tables but only %s found. check your spelling", len(specific_tables), len(layer_schema_map)
         )
 
+    failures = []
     for schema_name, layer, fields in layer_schema_map:
-        _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
+        if not _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
+            failures.append(f"{schema_name}.{layer}")
+
+    if failures:
+        raise RuntimeError(f"failed to update tables: {', '.join(failures)}")
 
 
 def read_last_check_date(gcp_bucket):
@@ -555,10 +570,16 @@ def update_last_check_date(gcp_bucket):
     blob.upload_from_string(datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
 
+def get_change_detection_bucket():
+    """gets the bucket containing the change detection checkpoint"""
+    client = storage.Client()
+
+    return client.get_bucket("ut-dts-agrc-open-sgid-prod-data")
+
+
 def get_tables_from_change_detection():
     """get changes from cambiador managed table"""
-    client = storage.Client()
-    bucket = client.get_bucket("ut-dts-agrc-open-sgid-prod-data")
+    bucket = get_change_detection_bucket()
 
     last_checked = read_last_check_date(bucket)
 
@@ -588,8 +609,6 @@ def get_tables_from_change_detection():
             table_schema = table_parts["schema"]
             table_name = table_parts["table_name"]
             updated_tables.append(f"{table_schema}.{table_name}")
-
-    update_last_check_date(bucket)
 
     return updated_tables
 
@@ -643,6 +662,8 @@ def sync(dry_run=False):
         update_seconds = perf_counter()
         tables = get_tables_from_change_detection()
         update(tables, dry_run)
+        if not dry_run:
+            update_last_check_date(get_change_detection_bucket())
         logger.info("update completed in %s", utils.format_time(perf_counter() - update_seconds))
     except Exception as error:
         logger.exception("update failure")
@@ -740,6 +761,8 @@ def main():
             tables = get_tables_from_change_detection()
 
         update(tables, args["--dry-run"])
+        if args["--from-change-detection"] and not args["--dry-run"]:
+            update_last_check_date(get_change_detection_bucket())
 
         logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 
