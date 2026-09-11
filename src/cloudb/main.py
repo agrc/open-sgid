@@ -11,6 +11,7 @@ Usage:
   cloudb import [--missing --dry-run --skip-if-exists]
   cloudb trim [--dry-run]
   cloudb update [--table=<tables>... --dry-run --from-change-detection]
+    cloudb sync [--dry-run]
   cloudb update-schema [--table=<tables>... --dry-run]
 """
 
@@ -617,6 +618,44 @@ def create_index(layer):
             logging.warning("- failed running: %s%s", sql, ex)
 
 
+def sync(dry_run=False):
+    """Run the complete synchronization workflow."""
+    has_errors = []
+    total_seconds = perf_counter()
+
+    try:
+        trim_seconds = perf_counter()
+        trim(dry_run)
+        logging.info("trim completed in %s", utils.format_time(perf_counter() - trim_seconds))
+    except Exception as error:
+        logging.error("trim failure %s", error, exc_info=True)
+        has_errors.append(error)
+
+    try:
+        import_seconds = perf_counter()
+        import_data(False, True, dry_run)
+        logging.info("import completed in %s", utils.format_time(perf_counter() - import_seconds))
+    except Exception as error:
+        logging.error("import failure %s", error, exc_info=True)
+        has_errors.append(error)
+
+    try:
+        update_seconds = perf_counter()
+        tables = get_tables_from_change_detection()
+        update(tables, dry_run)
+        logging.info("update completed in %s", utils.format_time(perf_counter() - update_seconds))
+    except Exception as error:
+        logging.error("update failure %s", error, exc_info=True)
+        has_errors.append(error)
+
+    if has_errors:
+        errors = "||".join(str(error) for error in has_errors)
+        logging.error(errors)
+        raise RuntimeError(errors)
+
+    logging.info("successful sync completed in %s", utils.format_time(perf_counter() - total_seconds))
+
+
 def main():
     """Main entry point for program. Parse arguments and pass to sweeper modules."""
     args = docopt(__doc__, version="1.1.0")
@@ -703,6 +742,13 @@ def main():
             tables = get_tables_from_change_detection()
 
         update(tables, args["--dry-run"])
+
+        logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
+
+        sys.exit()
+
+    if args["sync"]:
+        sync(args["--dry-run"])
 
         logging.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 

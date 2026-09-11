@@ -24,7 +24,26 @@ cloudb create admin-user
 cloudb create schema [--schemas=<name>]
 cloudb create read-only-user
 cloudb import
+cloudb sync
 ```
+
+`cloudb sync` runs the production synchronization sequence: trim removed tables,
+import missing data, and apply change-detection updates.
+
+## Cloud Run Job
+
+Production runs as the `cloudb` Cloud Run Job in `us-west3`. The Job uses one
+task with three retries and is executed daily by Cloud Scheduler at midnight in
+the `America/Denver` time zone.
+
+Run the Job manually with:
+
+```sh
+gcloud run jobs execute cloudb --region=us-west3
+```
+
+Job executions and logs are available from the Cloud Run Jobs page and Cloud
+Logging. The Scheduler service account needs `roles/run.invoker` on the Job.
 
 ## notes
 
