@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.10](https://github.com/agrc/open-sgid/compare/v1.0.9...v1.0.10) (2026-09-12)
+
+
+### Bug Fixes
+
+* Cloud Run Service -&gt; Job ([05c34b6](https://github.com/agrc/open-sgid/commit/05c34b6f2bbce6485322ed3329199a69e1cdb4e4)), refs [#98](https://github.com/agrc/open-sgid/issues/98)
+* don't log sensitive information ([8f05d85](https://github.com/agrc/open-sgid/commit/8f05d852acc52a0afcc131bcdf68dac02880fc5f))
+* exclude temporary schemas from table cache population ([2f83317](https://github.com/agrc/open-sgid/commit/2f833171368e3321aec13ab8308179bf3030836f))
+* move google dep into root ([4b90fb7](https://github.com/agrc/open-sgid/commit/4b90fb7a13bcf1bc2565696259b7f14e03b05668))
+
+
+### Dependencies
+
+* **docker:** bump gdal image ([d8d6646](https://github.com/agrc/open-sgid/commit/d8d6646c1dcc3f66bb41ce1052323d0022aef348))
+* major bump gunicorn 🌲 ([c8aad67](https://github.com/agrc/open-sgid/commit/c8aad6718c661f0bcef392e2bcbb0e207d7c4ac7))
+
 ## [1.0.9](https://github.com/agrc/open-sgid/compare/v1.0.8...v1.0.9) (2026-02-17)
 
 

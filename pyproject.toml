@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cloudb"
-version = "1.0.9"
+version = "1.0.10"
 description = "A cli to synchronize the internal sgid with the open sgid"
 readme = "src/readme.md"
 license = { text = "MIT" }
