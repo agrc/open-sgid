@@ -13,18 +13,25 @@ Usage:
   cloudb update [--table=<tables>... --dry-run --from-change-detection]
     cloudb sync [--dry-run]
   cloudb update-schema [--table=<tables>... --dry-run]
+
+Examples:
+  Update one table: cloudb update --table=location.address_points
+  Update multiple tables: cloudb update --table=location.address_points --table=water.rivers
+  Update a table schema: cloudb update-schema --table=location.address_points
 """
 
 import logging
 import sys
 from datetime import datetime, timezone
 from time import perf_counter, sleep
+from uuid import uuid4
 
 import psycopg2
 import pyodbc
 from docopt import docopt
 from google.cloud import storage
 from osgeo import gdal, ogr
+from psycopg2 import sql as pg_sql
 
 from . import CONNECTION_TABLE_CACHE, config, execute_sql, roles, schema, utils
 from .index import INDEXES
