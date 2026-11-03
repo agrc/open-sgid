@@ -20,11 +20,7 @@ A cli tool for taking spatial data from MSSQL and pushing it to PostGIS.
 ## usage
 
 ```sh
-cloudb create admin-user
-cloudb create schema [--schemas=<name>]
-cloudb create read-only-user
-cloudb import
-cloudb sync
+cloudb --help
 ```
 
 `cloudb sync` runs the production synchronization sequence: trim removed tables,
