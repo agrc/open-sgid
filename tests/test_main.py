@@ -60,3 +60,33 @@ def test_check_if_exists_populates_cache_on_miss(mocker):
 
     assert main._check_if_exists("connection", "water", "rivers", {}) is True
     populate_cache_mock.assert_called_once_with("connection")
+
+
+def test_replace_data_stages_before_swapping_live_table(mocker):
+    mocker.patch.object(main.config, "format_ogr_connection", return_value="postgres")
+    mocker.patch.object(main.config, "get_source_connection", return_value="source")
+    mocker.patch.object(main.gdal, "VectorTranslateOptions", side_effect=lambda **kwargs: kwargs["options"])
+    mocker.patch.object(main.gdal, "VectorTranslate", return_value=object())
+    make_valid = mocker.patch.object(main, "make_valid")
+    update_schema = mocker.patch.object(main.schema, "update_schema_for")
+    swap = mocker.patch.object(main, "_swap_staging_table")
+    create_index = mocker.patch.object(main, "create_index")
+
+    assert main._replace_data(
+        "location",
+        "address_points",
+        ["fulladd"],
+        {"location": {"address_points": {"title": "address_points", "geometry_type": "POINT"}}},
+        False,
+    )
+
+    options = main.gdal.VectorTranslateOptions.call_args.kwargs["options"]
+    staging_layer = options[options.index("-nln") + 1]
+    staging_qualified_layer = f"location.{staging_layer}"
+
+    assert staging_layer.startswith("address_points_stg_")
+    main.gdal.VectorTranslate.assert_called_once_with("postgres", "source", options=options)
+    make_valid.assert_called_once_with(staging_qualified_layer)
+    update_schema.assert_called_once_with("location.address_points", staging_qualified_layer)
+    swap.assert_called_once_with("location", staging_layer, "address_points")
+    create_index.assert_called_once_with("location.address_points")
