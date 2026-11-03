@@ -303,8 +303,12 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
 
         return True
 
+    target_layer = layer
+    staging_layer = f"{target_layer[:49]}_stg_{uuid4().hex[:8]}"
+    staging_qualified_layer = f"{schema_name}.{staging_layer}"
+
     options.append("-nln")
-    options.append(f"{layer}")
+    options.append(staging_layer)
 
     pg_options = None
     try:
@@ -338,23 +342,26 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
                     retry_delay *= 2  # exponential backoff
                 else:
                     logger.error("- all vector translate attempts failed for %s.%s", schema_name, layer)
+                    _drop_staging_table(schema_name, staging_layer)
                     return False
 
         if result is None:
             logger.error("- vector translate failed for %s.%s after %d attempts", schema_name, layer, max_retries)
+            _drop_staging_table(schema_name, staging_layer)
             return False
 
         del result
 
         logger.debug("make valid")
-        qualified_layer = f"{schema_name}.{layer}"
+        qualified_layer = f"{schema_name}.{target_layer}"
 
         # Retry logic for database operations
         for attempt in range(max_retries):
             try:
                 logger.debug("- attempt %d/%d for post-processing operations", attempt + 1, max_retries)
-                make_valid(qualified_layer)
-                schema.update_schema_for(internal_name, qualified_layer)
+                make_valid(staging_qualified_layer)
+                schema.update_schema_for(internal_name, staging_qualified_layer)
+                _swap_staging_table(schema_name, staging_layer, target_layer)
                 create_index(qualified_layer)
                 logger.debug("- post-processing completed successfully")
                 break
@@ -366,11 +373,39 @@ def _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
                 else:
                     logger.error("- all post-processing attempts failed for %s.%s", schema_name, layer)
 
+                    _drop_staging_table(schema_name, staging_layer)
                     return False
 
         return True
 
     return True
+
+
+def _swap_staging_table(schema_name, staging_layer, target_layer):
+    """atomically replace a table with its staged copy"""
+    old_layer = f"{target_layer[:49]}_old_{uuid4().hex[:8]}"
+    with psycopg2.connect(**config.DBO_CONNECTION) as connection, connection.cursor() as cursor:
+        cursor.execute(
+            pg_sql.SQL("ALTER TABLE IF EXISTS {} RENAME TO {}").format(
+                pg_sql.Identifier(schema_name, target_layer), pg_sql.Identifier(old_layer)
+            )
+        )
+        cursor.execute(
+            pg_sql.SQL("ALTER TABLE {} RENAME TO {}").format(
+                pg_sql.Identifier(schema_name, staging_layer), pg_sql.Identifier(target_layer)
+            )
+        )
+        cursor.execute(pg_sql.SQL("DROP TABLE IF EXISTS {} CASCADE").format(pg_sql.Identifier(schema_name, old_layer)))
+
+
+def _drop_staging_table(schema_name, staging_layer):
+    """remove a staging table after an unsuccessful replacement"""
+    statement = pg_sql.SQL("DROP TABLE IF EXISTS {}").format(pg_sql.Identifier(schema_name, staging_layer))
+    try:
+        with psycopg2.connect(**config.DBO_CONNECTION) as connection, connection.cursor() as cursor:
+            cursor.execute(statement)
+    except psycopg2.Error as ex:
+        logger.warning("- failed to clean up staging table %s.%s: %s", schema_name, staging_layer, ex)
 
 
 def import_data(if_not_exists, missing_only, dry_run):
