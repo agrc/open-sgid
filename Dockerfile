@@ -27,9 +27,11 @@ RUN apt-get install -y --no-install-recommends \
 
 RUN apt reinstall ca-certificates -y
 
-RUN curl -s https://packages.microsoft.com/keys/microsoft.asc | tee /etc/apt/trusted.gpg.d/microsoft.asc
-RUN curl -s https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-RUN curl -s https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | tee /etc/apt/sources.list.d/mssql-release.list
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc -o /tmp/microsoft.asc \
+  && curl -fsSL https://packages.microsoft.com/keys/microsoft-2025.asc >> /tmp/microsoft.asc \
+  && gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg /tmp/microsoft.asc \
+  && rm /tmp/microsoft.asc
+RUN curl -fsSL https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list -o /etc/apt/sources.list.d/mssql-release.list
 
 RUN apt-get update && apt install -y apt-utils
 
