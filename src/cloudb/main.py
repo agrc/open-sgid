@@ -14,10 +14,12 @@ Usage:
     cloudb sync [--dry-run]
   cloudb update-schema [--table=<tables>... --dry-run]
 
+  --table should be the lowercased internal table name
+
 Examples:
-  Update one table: cloudb update --table=location.address_points
-  Update multiple tables: cloudb update --table=location.address_points --table=water.rivers
-  Update a table schema: cloudb update-schema --table=location.address_points
+  Update one table: cloudb update --table=location.addresspoints
+  Update multiple tables: cloudb update --table=location.addresspoints --table=water.rivers
+  Update a table schema: cloudb update-schema --table=location.addresspoints
 """
 
 import logging

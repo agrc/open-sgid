@@ -21,16 +21,9 @@ Root-level support files include `.dockerignore`, `.editorconfig`, `.gitignore`,
 
 ## Setup and validation
 
-Assume the user has already created a Conda environment named `cloudb` for this project. Use that environment for all commands. If it is not available, ask the user whether they would like you to set it up before attempting environment creation; do not create a different environment automatically.
+Development for this project is intended to be run inside of a dev container.
 
-```sh
-conda activate cloudb
-python -m pip install -e ".[dev]"
-```
-
-Always install the `dev` extra before running the full test command. The corrected development-install syntax is `pip install -e ".[dev]"`; do not use the malformed example in `src/readme.md`. On macOS, the editable install may require native GDAL first (for example, `brew install gdal`, or the equivalent Conda package) so `gdal-config` is available. This prerequisite was observed in the current environment: Python 3.14.7/pip 26.2.1 are installed, but `python -m pip install -e ".[dev]"` fails because `gdal-config` is missing. Do not claim tests passed until installation succeeds.
-
-After installation, run:
+Tests:
 
 ```sh
 pytest

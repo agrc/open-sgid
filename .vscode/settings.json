@@ -102,5 +102,6 @@
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true
   },
-  "python-envs.defaultPackageManager": "ms-python.python:conda"
+  "python-envs.defaultPackageManager": "ms-python.python:pip",
+  "python-envs.defaultEnvManager": "ms-python.python:system"
 }
