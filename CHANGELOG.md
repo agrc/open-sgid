@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.11](https://github.com/agrc/open-sgid/compare/v1.0.10...v1.0.11) (2026-11-04)
+
+
+### Bug Fixes
+
+* implement staging table logic for data replacement ([5a5b0d8](https://github.com/agrc/open-sgid/commit/5a5b0d89f5857fe0f9a42718bc12a39bcb0870ec)), refs [#106](https://github.com/agrc/open-sgid/issues/106)
+* install curl before configuring Microsoft apt repository ([2c461a2](https://github.com/agrc/open-sgid/commit/2c461a296cfea263bc64ef8e5ddef2b110afb3cd))
+* trust current Microsoft repository signing key ([b4c34ea](https://github.com/agrc/open-sgid/commit/b4c34ea73e83dee531e47f7831dc8272585e8829))
+
+
+### Dependencies
+
+* **docker:** bump osgeo/gdal ([ac65d1f](https://github.com/agrc/open-sgid/commit/ac65d1f6011e1c0d0737a8dabe429377f6b26d8d))
+
 ## [1.0.10](https://github.com/agrc/open-sgid/compare/v1.0.9...v1.0.10) (2026-09-12)
 
 
