@@ -27,7 +27,11 @@ elif level == "ERROR":
 elif level == "CRITICAL":
     log_level = logging.CRITICAL
 
-stream_handler = StructuredLogHandler(stream=stdout)
+if getenv("CLOUD_RUN_JOB") or getenv("K_SERVICE"):
+    stream_handler = StructuredLogHandler(stream=stdout)
+else:
+    stream_handler = logging.StreamHandler(stream=stdout)
+    stream_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
 logging.basicConfig(handlers=[stream_handler], level=log_level)
 
 

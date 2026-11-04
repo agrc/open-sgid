@@ -46,11 +46,30 @@ def test_sync_raises_after_running_all_stages(mocker):
     assert report.call_args.args[0]["status"] == "failure"
 
 
+def test_sync_reports_successfully_updated_tables_when_update_partially_fails(mocker):
+    mocker.patch.object(main, "trim")
+    mocker.patch.object(main, "import_data")
+    mocker.patch.object(main, "get_tables_from_change_detection", return_value=["history.historictrails"])
+    mocker.patch.object(
+        main,
+        "update",
+        side_effect=main.UpdateError(["history.failed_table"], ["history.historic_trails"]),
+    )
+    report = mocker.patch.object(main, "send_report")
+
+    with pytest.raises(RuntimeError, match="failed to update tables: history.failed_table"):
+        main.sync()
+
+    payload = report.call_args.args[0]
+    assert payload["status"] == "failure"
+    assert payload["tables"] == ["history.historic_trails"]
+
+
 def test_sync_reports_success_without_masking_notification_failure(mocker):
     mocker.patch.object(main, "trim")
     mocker.patch.object(main, "import_data")
     mocker.patch.object(main, "get_tables_from_change_detection", return_value=[])
-    mocker.patch.object(main, "update")
+    mocker.patch.object(main, "update", return_value=["history.historic_trails"])
     mocker.patch.object(main, "update_last_check_date")
     mocker.patch.object(main, "get_change_detection_bucket")
     report = mocker.patch.object(main, "send_report", side_effect=NotificationError("webhook failed"))
@@ -59,6 +78,7 @@ def test_sync_reports_success_without_masking_notification_failure(mocker):
 
     report.assert_called_once()
     assert report.call_args.args[0]["status"] == "success"
+    assert report.call_args.args[0]["tables"] == ["history.historic_trails"]
 
 
 def test_failed_sync_preserves_original_error_when_report_fails(mocker):
@@ -86,6 +106,73 @@ def test_sync_does_not_fail_for_invalid_webhook_configuration(mocker):
     mocker.patch.object(main.config, "GOOGLE_CHAT_WEBHOOK", 123)
 
     main.sync()
+
+
+def test_standalone_update_reports_successful_destination_tables(mocker):
+    mocker.patch.object(main, "update", return_value=["history.historic_trails"])
+    report = mocker.patch.object(main, "send_report")
+
+    main._run_update(["history.historictrails"], False)
+
+    report.assert_called_once()
+    payload = report.call_args.args[0]
+    assert payload["status"] == "success"
+    assert payload["tables"] == ["history.historic_trails"]
+    assert payload["phases"][0]["name"] == "update"
+
+
+def test_standalone_update_reports_failure_without_masking_original_error(mocker):
+    mocker.patch.object(
+        main,
+        "update",
+        side_effect=main.UpdateError(["history.historictrails"], ["history.historic_trails"]),
+    )
+    report = mocker.patch.object(main, "send_report")
+
+    with pytest.raises(RuntimeError, match="failed to update tables: history.historictrails"):
+        main._run_update(["history.historictrails"], False)
+
+    report.assert_called_once()
+    assert report.call_args.args[0]["status"] == "failure"
+    assert report.call_args.args[0]["tables"] == ["history.historic_trails"]
+
+
+def test_update_reports_only_successful_destination_tables(mocker):
+    mocker.patch.object(main.config, "get_source_connection", return_value="source")
+    mocker.patch.object(
+        main,
+        "_get_tables_with_fields",
+        return_value=[
+            ("history", "historictrails", []),
+            ("history", "no_longer_published", []),
+            ("history", "failed_table", []),
+        ],
+    )
+    mocker.patch.object(
+        main,
+        "_get_table_meta",
+        return_value={
+            "history": {
+                "historictrails": {"title": "historic_trails", "geometry_type": "POLYGON"},
+                "failed_table": {"title": "failed_table", "geometry_type": "POLYGON"},
+            }
+        },
+    )
+    mocker.patch.object(main, "_replace_data", side_effect=[True, True, False])
+
+    with pytest.raises(main.UpdateError, match="failed to update tables: history.failed_table") as raised:
+        main.update(["history.historictrails"], False)
+
+    assert raised.value.updated_tables == ["history.historic_trails"]
+
+
+def test_standalone_dry_run_does_not_report(mocker):
+    mocker.patch.object(main, "update")
+    report = mocker.patch.object(main, "send_report")
+
+    main._run_update(["history.historictrails"], True)
+
+    report.assert_not_called()
 
 
 def test_check_if_exists_returns_true_for_cached_table(mocker):
