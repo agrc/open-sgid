@@ -24,7 +24,7 @@ Examples:
 
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from time import perf_counter, sleep
 from uuid import uuid4
 
@@ -611,7 +611,7 @@ def update_last_check_date(gcp_bucket):
     if blob is None:
         blob = storage.Blob(".last_checked", gcp_bucket)
 
-    blob.upload_from_string(datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    blob.upload_from_string(datetime.now(UTC).strftime("%Y-%m-%d"))
 
 
 def get_change_detection_bucket():
@@ -628,10 +628,10 @@ def get_tables_from_change_detection():
     last_checked = read_last_check_date(bucket)
 
     if last_checked is None:
-        last_checked = datetime.now(timezone.utc)
+        last_checked = datetime.now(UTC)
     else:
         try:
-            last_checked = datetime.strptime(last_checked, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            last_checked = datetime.strptime(last_checked, "%Y-%m-%d").replace(tzinfo=UTC)
         except ValueError:
             logger.exception("invalid date format in .last_checked: %s", last_checked)
 
