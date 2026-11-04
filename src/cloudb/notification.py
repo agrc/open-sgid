@@ -71,6 +71,8 @@ def _message(report: dict[str, Any]) -> str:
     for key in ("status", "duration_seconds", "execution", "task", "attempt", "logs"):
         if key in report:
             lines.append(f"{key}: {report[key]}")
+    if report.get("tables"):
+        lines.append(f"tables: {', '.join(report['tables'])}")
     for phase in report.get("phases", []):
         lines.append(
             f"phase {phase.get('name')}: {phase.get('status')} "

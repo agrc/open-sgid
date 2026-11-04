@@ -46,8 +46,10 @@ gcloud run jobs execute cloudb --region=us-west3
 Job executions and logs are available from the Cloud Run Jobs page and Cloud
 Logging. The Scheduler service account needs `roles/run.invoker` on the Job.
 
-Each non-dry-run sync posts one success or failure report to Google Chat when
-`googleChatWebhookUrl` is configured in the existing connection JSON.
+Each non-dry-run sync or standalone update posts one success or failure report
+to Google Chat when `googleChatWebhookUrl` is configured in the existing
+connection JSON. Reports list the destination table names successfully updated
+during the run.
 The notification test reads the same connection JSON, requires the
 webhook field, and remains database-independent:
 

@@ -41,6 +41,11 @@ from .notification import NotificationError, build_sync_report, send_report
 
 logger = logging.getLogger(__name__)
 
+class UpdateError(RuntimeError):
+    def __init__(self, failures, updated_tables):
+        super().__init__(f"failed to update tables: {', '.join(failures)}")
+        self.updated_tables = updated_tables
+
 gdal.SetConfigOption("MSSQLSPATIAL_LIST_ALL_TABLES", "YES")
 gdal.SetConfigOption("PG_LIST_ALL_TABLES", "YES")
 gdal.SetConfigOption("PG_USE_POSTGIS", "YES")
@@ -557,14 +562,14 @@ def update(specific_tables, dry_run):
     if not specific_tables or len(specific_tables) == 0:
         logger.info(" no tables to import!")
 
-        return
+        return []
 
     layer_schema_map = _get_tables_with_fields(internal_sgid, specific_tables)
 
     if len(layer_schema_map) == 0:
         logger.info(" no matching table found!")
 
-        return
+        return []
 
     agol_meta_map = _get_table_meta()
 
@@ -574,12 +579,19 @@ def update(specific_tables, dry_run):
         )
 
     failures = []
+    updated_tables = []
     for schema_name, layer, fields in layer_schema_map:
-        if not _replace_data(schema_name, layer, fields, agol_meta_map, dry_run):
+        replaced = _replace_data(schema_name, layer, fields, agol_meta_map, dry_run)
+        if not replaced:
             failures.append(f"{schema_name}.{layer}")
+        elif schema_name in agol_meta_map and layer in agol_meta_map[schema_name]:
+            target_name = agol_meta_map[schema_name][layer]["title"]
+            updated_tables.append(f"{schema_name}.{target_name}")
 
     if failures:
-        raise RuntimeError(f"failed to update tables: {', '.join(failures)}")
+        raise UpdateError(failures, updated_tables)
+
+    return updated_tables
 
 
 def read_last_check_date(gcp_bucket):
@@ -687,6 +699,7 @@ def sync(dry_run=False):
     has_errors = []
     total_seconds = perf_counter()
     phases = []
+    updated_tables = []
 
     try:
         trim_seconds = perf_counter()
@@ -713,7 +726,7 @@ def sync(dry_run=False):
     try:
         update_seconds = perf_counter()
         tables = get_tables_from_change_detection()
-        update(tables, dry_run)
+        updated_tables = update(tables, dry_run) or []
         if not dry_run:
             update_last_check_date(get_change_detection_bucket())
         duration = perf_counter() - update_seconds
@@ -722,10 +735,13 @@ def sync(dry_run=False):
     except Exception as error:
         phases.append({"name": "update", "status": "failure", "duration_seconds": round(perf_counter() - update_seconds, 2)})
         logger.exception("update failure")
+        updated_tables = getattr(error, "updated_tables", updated_tables)
         has_errors.append(error)
 
     if not dry_run:
         report = build_sync_report("failure" if has_errors else "success", perf_counter() - total_seconds, phases)
+        if updated_tables:
+            report["tables"] = updated_tables
         try:
             send_report(report, config.GOOGLE_CHAT_WEBHOOK)
         except NotificationError as error:
@@ -737,6 +753,34 @@ def sync(dry_run=False):
         raise RuntimeError(errors)
 
     logger.info("successful sync completed in %s", utils.format_time(perf_counter() - total_seconds))
+
+
+def _run_update(tables, dry_run, update_checkpoint=False):
+    update_seconds = perf_counter()
+    status = "success"
+    updated_tables = []
+    try:
+        updated_tables = update(tables, dry_run) or []
+        if update_checkpoint and not dry_run:
+            update_last_check_date(get_change_detection_bucket())
+    except Exception as error:
+        status = "failure"
+        updated_tables = getattr(error, "updated_tables", updated_tables)
+        raise
+    finally:
+        if not dry_run:
+            duration = perf_counter() - update_seconds
+            report = build_sync_report(
+                status,
+                duration,
+                [{"name": "update", "status": status, "duration_seconds": round(duration, 2)}],
+            )
+            if updated_tables:
+                report["tables"] = updated_tables
+            try:
+                send_report(report, config.GOOGLE_CHAT_WEBHOOK)
+            except NotificationError as error:
+                logger.error("update report delivery failed: %s", error)
 
 
 def main():
@@ -822,9 +866,7 @@ def main():
         if args["--from-change-detection"]:
             tables = get_tables_from_change_detection()
 
-        update(tables, args["--dry-run"])
-        if args["--from-change-detection"] and not args["--dry-run"]:
-            update_last_check_date(get_change_detection_bucket())
+        _run_update(tables, args["--dry-run"], args["--from-change-detection"])
 
         logger.info("completed in %s", utils.format_time(perf_counter() - start_seconds))
 

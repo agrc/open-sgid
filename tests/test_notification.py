@@ -18,6 +18,7 @@ def test_send_report_posts_bounded_human_readable_message(mocker):
         {
             "status": "success",
             "duration_seconds": 1.23,
+            "tables": ["history.historictrails"],
             "phases": [{"name": "trim", "status": "success", "duration_seconds": 0.1}],
             "logs": "x" * 5000,
         },
@@ -27,6 +28,7 @@ def test_send_report_posts_bounded_human_readable_message(mocker):
     request = urlopen.call_args.args[0]
     message = json.loads(request.data)["text"]
     assert len(message) <= notification.MAX_MESSAGE_LENGTH
+    assert "tables: history.historictrails" in message
     assert "phase trim: success (0.1s)" in message
 
 
