@@ -2,31 +2,14 @@
 config.py
 A module that holds configuration items
 """
-import json
-import logging
-import os
-from pathlib import Path
 from textwrap import dedent
 
-logger = logging.getLogger(__name__)
+from .config_loader import ConfigurationError, load_connection_secrets
 
-class ConfigurationError(Exception):
-    """Raised when required application configuration is unavailable."""
+__all__ = ["ConfigurationError"]
 
-
-secrets_file = Path(os.environ.get("CLOUDB_CONFIG", "/secrets/db/connection"))
-local_secrets_file = Path(__file__).parent / "secrets" / "db" / "connection"
-secrets = {}
-
-if secrets_file.exists():
-    logger.debug("loading secrets from %s", secrets_file)
-    secrets = json.loads(secrets_file.read_text(encoding="utf-8"))
-elif local_secrets_file.exists():
-    logger.debug("loading secrets from %s", local_secrets_file)
-    secrets = json.loads(local_secrets_file.read_text(encoding="utf-8"))
-else:
-    logger.critical("no secrets file found")
-    raise ConfigurationError("no secrets file found")
+secrets = load_connection_secrets()
+GOOGLE_CHAT_WEBHOOK = secrets.get("googleChatWebhookUrl")
 
 SCHEMAS = [
     "bioscience",

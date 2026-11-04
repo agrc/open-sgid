@@ -20,7 +20,6 @@ dependencies = [
   "docopt==0.*",
   "pyodbc==5.*",
   "psycopg2-binary==2.*",
-  "python-dotenv==1.*",
   "gdal==3.*",
   "google-cloud-logging==3.*",
   "google-cloud-storage==3.*",
@@ -44,6 +43,7 @@ dev = [
 
 [project.scripts]
 cloudb = "cloudb.main:main"
+cloudb-notification-test = "cloudb.notification:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cloudb"]

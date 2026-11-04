@@ -37,6 +37,7 @@ from psycopg2 import sql as pg_sql
 
 from . import CONNECTION_TABLE_CACHE, config, execute_sql, roles, schema, utils
 from .index import INDEXES
+from .notification import NotificationError, build_sync_report, send_report
 
 logger = logging.getLogger(__name__)
 
@@ -685,20 +686,27 @@ def sync(dry_run=False):
     """Run the complete synchronization workflow."""
     has_errors = []
     total_seconds = perf_counter()
+    phases = []
 
     try:
         trim_seconds = perf_counter()
         trim(dry_run)
-        logger.info("trim completed in %s", utils.format_time(perf_counter() - trim_seconds))
+        duration = perf_counter() - trim_seconds
+        phases.append({"name": "trim", "status": "success", "duration_seconds": round(duration, 2)})
+        logger.info("trim completed in %s", utils.format_time(duration))
     except Exception as error:
+        phases.append({"name": "trim", "status": "failure", "duration_seconds": round(perf_counter() - trim_seconds, 2)})
         logger.exception("trim failure")
         has_errors.append(error)
 
     try:
         import_seconds = perf_counter()
         import_data(False, True, dry_run)
-        logger.info("import completed in %s", utils.format_time(perf_counter() - import_seconds))
+        duration = perf_counter() - import_seconds
+        phases.append({"name": "import", "status": "success", "duration_seconds": round(duration, 2)})
+        logger.info("import completed in %s", utils.format_time(duration))
     except Exception as error:
+        phases.append({"name": "import", "status": "failure", "duration_seconds": round(perf_counter() - import_seconds, 2)})
         logger.exception("import failure")
         has_errors.append(error)
 
@@ -708,10 +716,20 @@ def sync(dry_run=False):
         update(tables, dry_run)
         if not dry_run:
             update_last_check_date(get_change_detection_bucket())
-        logger.info("update completed in %s", utils.format_time(perf_counter() - update_seconds))
+        duration = perf_counter() - update_seconds
+        phases.append({"name": "update", "status": "success", "duration_seconds": round(duration, 2)})
+        logger.info("update completed in %s", utils.format_time(duration))
     except Exception as error:
+        phases.append({"name": "update", "status": "failure", "duration_seconds": round(perf_counter() - update_seconds, 2)})
         logger.exception("update failure")
         has_errors.append(error)
+
+    if not dry_run:
+        report = build_sync_report("failure" if has_errors else "success", perf_counter() - total_seconds, phases)
+        try:
+            send_report(report, config.GOOGLE_CHAT_WEBHOOK)
+        except NotificationError as error:
+            logger.error("sync report delivery failed: %s", error)
 
     if has_errors:
         errors = "||".join(str(error) for error in has_errors)

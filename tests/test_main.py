@@ -3,6 +3,7 @@ from unittest.mock import call
 import pytest
 
 from cloudb import main
+from cloudb.notification import NotificationError
 
 
 def test_sync_runs_operations_in_order(mocker):
@@ -15,6 +16,7 @@ def test_sync_runs_operations_in_order(mocker):
         main, "get_tables_from_change_detection", side_effect=lambda: calls.append(("change detection",)) or ["water.rivers"]
     )
     update = mocker.patch.object(main, "update", side_effect=lambda tables, dry_run: calls.append(("update", dry_run)))
+    report = mocker.patch.object(main, "send_report")
 
     main.sync(dry_run=True)
 
@@ -23,6 +25,7 @@ def test_sync_runs_operations_in_order(mocker):
     assert get_tables.call_count == 1
     assert update.call_args == call(["water.rivers"], True)
     assert calls == [("trim", True), ("import", True), ("change detection",), ("update", True)]
+    report.assert_not_called()
 
 
 def test_sync_raises_after_running_all_stages(mocker):
@@ -30,6 +33,7 @@ def test_sync_raises_after_running_all_stages(mocker):
     import_data = mocker.patch.object(main, "import_data")
     get_tables = mocker.patch.object(main, "get_tables_from_change_detection", return_value=[])
     update = mocker.patch.object(main, "update")
+    report = mocker.patch.object(main, "send_report")
 
     with pytest.raises(RuntimeError, match="trim failed"):
         main.sync()
@@ -38,6 +42,50 @@ def test_sync_raises_after_running_all_stages(mocker):
     assert import_data.call_count == 1
     assert get_tables.call_count == 1
     assert update.call_count == 1
+    report.assert_called_once()
+    assert report.call_args.args[0]["status"] == "failure"
+
+
+def test_sync_reports_success_without_masking_notification_failure(mocker):
+    mocker.patch.object(main, "trim")
+    mocker.patch.object(main, "import_data")
+    mocker.patch.object(main, "get_tables_from_change_detection", return_value=[])
+    mocker.patch.object(main, "update")
+    mocker.patch.object(main, "update_last_check_date")
+    mocker.patch.object(main, "get_change_detection_bucket")
+    report = mocker.patch.object(main, "send_report", side_effect=NotificationError("webhook failed"))
+
+    main.sync()
+
+    report.assert_called_once()
+    assert report.call_args.args[0]["status"] == "success"
+
+
+def test_failed_sync_preserves_original_error_when_report_fails(mocker):
+    mocker.patch.object(main, "trim", side_effect=RuntimeError("trim failed"))
+    mocker.patch.object(main, "import_data")
+    mocker.patch.object(main, "get_tables_from_change_detection", return_value=[])
+    mocker.patch.object(main, "update")
+    mocker.patch.object(main, "update_last_check_date")
+    mocker.patch.object(main, "get_change_detection_bucket")
+    mocker.patch.object(main, "send_report", side_effect=NotificationError("webhook failed"))
+
+    with pytest.raises(RuntimeError, match="trim failed") as raised:
+        main.sync()
+
+    assert "webhook failed" not in str(raised.value)
+
+
+def test_sync_does_not_fail_for_invalid_webhook_configuration(mocker):
+    mocker.patch.object(main, "trim")
+    mocker.patch.object(main, "import_data")
+    mocker.patch.object(main, "get_tables_from_change_detection", return_value=[])
+    mocker.patch.object(main, "update")
+    mocker.patch.object(main, "update_last_check_date")
+    mocker.patch.object(main, "get_change_detection_bucket")
+    mocker.patch.object(main.config, "GOOGLE_CHAT_WEBHOOK", 123)
+
+    main.sync()
 
 
 def test_check_if_exists_returns_true_for_cached_table(mocker):
