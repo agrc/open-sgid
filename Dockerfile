@@ -19,6 +19,7 @@ RUN apt-get install -y --no-install-recommends \
   apt-get clean
 
 RUN apt-get install -y --no-install-recommends \
+  curl \
   gnupg2 \
   lsb-release \
   && \
