@@ -3,6 +3,7 @@
 **/cloudb.egg-info
 **/.eggs
 **/.env
+src/cloudb/secrets/db/connection
 **/.github
 **/.pyteset_cache
 **/.vscode

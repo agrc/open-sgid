@@ -2,29 +2,25 @@
 
 A cli tool for taking spatial data from MSSQL and pushing it to PostGIS.
 
-## installation
+## Local Development
 
-### python with conda
+### dev container
 
-1. create a conda environment
-   - `conda create -n cloudb`
-   - `conda activate cloudb`
-1. install the requirements
-   - `conda install -c conda-forge gdal`
-   - `pip install -e .`
-   - for development `pip install -e ".[dev]"`
-1. remove `.template` from `./src/cloudb/secrets/db/connection.template` and add the proper values
-1. execute cli commands
-   - `cloudb`
+The VS Code dev container uses the `test` stage from the project Dockerfile,
+including its GDAL, SQL Server ODBC driver, and development dependencies. Install
+Docker and the VS Code Dev Containers extension, open this repository in VS Code,
+then run **Dev Containers: Reopen in Container** from the Command Palette.
+The container targets Linux amd64 to match the deployment image and SQL Server
+ODBC driver; Apple Silicon Macs run it under Docker emulation.
+
+Database commands still require a valid local connection configuration and
+network access to the databases.
 
 ## usage
 
 ```sh
 cloudb --help
 ```
-
-`cloudb sync` runs the production synchronization sequence: trim removed tables,
-import missing data, and apply change-detection updates.
 
 ## Cloud Run Job
 

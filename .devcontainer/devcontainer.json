@@ -1,0 +1,25 @@
+{
+  "name": "cloudb",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "test",
+    "options": [
+      "--platform=linux/amd64"
+    ]
+  },
+  "workspaceFolder": "/app",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  }
+}
