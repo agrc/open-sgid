@@ -7,7 +7,6 @@ import logging
 from os import getenv
 from sys import stdout
 
-import psycopg2
 from google.cloud.logging.handlers import StructuredLogHandler
 
 logger = logging.getLogger(__name__)
@@ -39,6 +38,8 @@ def execute_sql(sql, connection):
     """
     statement_count = len([s for s in sql.split(";") if s.strip()])
     logger.debug("  executing SQL statement(s): count=%d", statement_count)
+
+    import psycopg2
 
     with psycopg2.connect(**connection) as conn:
         with conn.cursor() as cursor:
