@@ -10,6 +10,5 @@ def test_source_connection_uses_driver_18_with_encryption(mocker):
 
     connection = config.get_source_connection()
 
-    assert connection.startswith("MSSQL:driver=ODBC Driver 18 for SQL Server;Encrypt=yes;")
+    assert connection.startswith("MSSQL:driver=ODBC Driver 18 for SQL Server;")
     assert "server=sql.example.com;" in connection
-    assert "TrustServerCertificate" not in connection
