@@ -7,11 +7,20 @@ A cli tool for taking spatial data from MSSQL and pushing it to PostGIS.
 ### dev container
 
 The VS Code dev container uses the `test` stage from the project Dockerfile,
-including its GDAL, SQL Server ODBC driver, and development dependencies. Install
+including its GDAL, SQL Server ODBC Driver 18, and development dependencies. Install
 Docker and the VS Code Dev Containers extension, open this repository in VS Code,
 then run **Dev Containers: Reopen in Container** from the Command Palette.
-The container targets Linux amd64 to match the deployment image and SQL Server
-ODBC driver; Apple Silicon Macs run it under Docker emulation.
+The container builds for the host architecture: Linux arm64 on Apple Silicon
+and Linux amd64 on Intel/AMD machines. Do not add `--platform=linux/amd64` on
+Apple Silicon: running Ruff under AMD64 emulation can crash.
+
+After changing the Dockerfile, run **Dev Containers: Rebuild and Reopen in
+Container**. To build and check the image directly:
+
+```sh
+docker build --target test -t cloudb:test .
+docker run --rm cloudb:test ruff --version
+```
 
 Database commands still require a valid local connection configuration and
 network access to the databases.

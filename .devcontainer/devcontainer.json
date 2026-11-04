@@ -7,10 +7,7 @@
   "build": {
     "dockerfile": "../Dockerfile",
     "context": "..",
-    "target": "test",
-    "options": [
-      "--platform=linux/amd64"
-    ]
+    "target": "test"
   },
   "workspaceFolder": "/app",
   "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",

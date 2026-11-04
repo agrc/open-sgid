@@ -1,4 +1,5 @@
 **/__pycache__
+**/qemu_*.core
 **/tests
 **/cloudb.egg-info
 **/.eggs

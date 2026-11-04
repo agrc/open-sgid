@@ -33,7 +33,7 @@ RUN curl -s https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod
 RUN apt-get update && apt install -y apt-utils
 
 RUN ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
-  msodbcsql17 && apt-get clean
+  msodbcsql18 && apt-get clean
 
 FROM base AS test
 

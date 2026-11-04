@@ -131,7 +131,8 @@ def format_ogr_connection(connection):
 def get_source_connection():
     """a method to format the sql server source data connection string"""
     return (
-        "MSSQL:driver=ODBC Driver 17 for SQL Server;"
+        "MSSQL:driver=ODBC Driver 18 for SQL Server;"
+        "TrustServerCertificate=yes;"
         f"server={SRC_CONNECTION['host']};"
         f"database={SRC_CONNECTION['database']};"
         f"UID={SRC_CONNECTION['user']};"
