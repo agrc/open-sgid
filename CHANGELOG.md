@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.12](https://github.com/agrc/open-sgid/compare/v1.0.11...v1.0.12) (2026-11-05)
+
+
+### Features
+
+* post status report to a google chat space ([dc94f9b](https://github.com/agrc/open-sgid/commit/dc94f9b3dbfe26f2e02fd681362d9619f80980e2)), refs [#104](https://github.com/agrc/open-sgid/issues/104)
+
+
+### Bug Fixes
+
+* better logging format when running in a terminal ([498a03e](https://github.com/agrc/open-sgid/commit/498a03ed03c155f62c5231aa9d4f3be8cc55633b))
+
 ## [1.0.11](https://github.com/agrc/open-sgid/compare/v1.0.10...v1.0.11) (2026-11-04)
 
 
